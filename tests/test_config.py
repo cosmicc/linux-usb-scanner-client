@@ -45,6 +45,8 @@ log_level = info
         self.assertEqual(config.server.host, "logger.local")
         self.assertEqual(config.server.port, 55256)
         self.assertEqual(config.buffer.storage_min_free_mb, 1024)
+        self.assertFalse(config.updates.enabled)
+        self.assertEqual(config.updates.branch, "main")
         self.assertEqual(config.logging.log_level, "INFO")
         self.assertEqual(validate_operational_config(config), [])
 

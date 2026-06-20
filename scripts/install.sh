@@ -9,6 +9,8 @@ CONFIG_PATH="/etc/linux-usb-scanner-client.conf"
 STATE_DIR="/var/lib/linux-usb-scanner-client"
 LOG_PATH="/var/log/linux-usb-scanner-client.log"
 UNIT_PATH="/etc/systemd/system/linux-usb-scanner-client.service"
+UPDATE_UNIT_PATH="/etc/systemd/system/linux-usb-scanner-client-update.service"
+UPDATE_TIMER_PATH="/etc/systemd/system/linux-usb-scanner-client-update.timer"
 
 usage() {
   cat <<'USAGE'
@@ -53,6 +55,10 @@ command -v python3 >/dev/null 2>&1 || {
   echo "python3 is required." >&2
   exit 1
 }
+
+if ! command -v git >/dev/null 2>&1; then
+  echo "Warning: git is not installed. Auto-update checks will fail until git is installed." >&2
+fi
 
 if ! getent group "${SERVICE_GROUP}" >/dev/null; then
   groupadd --system "${SERVICE_GROUP}"
@@ -100,11 +106,20 @@ fi
 install -o root -g root -m 0644 \
   "${INSTALL_DIR}/systemd/linux-usb-scanner-client.service" \
   "${UNIT_PATH}"
+install -o root -g root -m 0644 \
+  "${INSTALL_DIR}/systemd/linux-usb-scanner-client-update.service" \
+  "${UPDATE_UNIT_PATH}"
+install -o root -g root -m 0644 \
+  "${INSTALL_DIR}/systemd/linux-usb-scanner-client-update.timer" \
+  "${UPDATE_TIMER_PATH}"
 
 systemctl daemon-reload
 systemctl enable "${APP_NAME}.service"
+systemctl enable "${APP_NAME}-update.timer"
+systemctl restart "${APP_NAME}-update.timer"
 systemctl restart "${APP_NAME}.service"
 
 echo "Installed ${APP_NAME}."
 echo "Edit ${CONFIG_PATH}, then run: sudo systemctl restart ${APP_NAME}"
 echo "Check health with: sudo ${INSTALL_DIR}/venv/bin/linux-usb-scanner-client health"
+echo "Auto-update timer is installed; set [updates] enabled = true in ${CONFIG_PATH} to allow updates."

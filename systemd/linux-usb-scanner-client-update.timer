@@ -1,0 +1,14 @@
+[Unit]
+Description=Run Linux USB Scanner Client Auto Update Checks
+Documentation=https://github.com/cosmicc/linux-usb-scanner-client
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+RandomizedDelaySec=2min
+Persistent=true
+Unit=linux-usb-scanner-client-update.service
+
+[Install]
+WantedBy=timers.target
+

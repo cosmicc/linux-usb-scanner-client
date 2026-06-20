@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "linux-usb-scanner-client"
-version = "0.1.0"
+version = "0.1.1"
 description = "Linux service that forwards USB keyboard-wedge scanner input to industrial-scanner-logger over TCP."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -19,4 +19,3 @@ linux-usb-scanner-client = "linux_usb_scanner_client.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-

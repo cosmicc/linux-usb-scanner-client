@@ -24,6 +24,7 @@ Every meaningful change must keep these files current:
 - `src/linux_usb_scanner_client/tcp_sender.py` owns the persistent TCP client connection and sends `barcode + "\r\n"`.
 - `src/linux_usb_scanner_client/service.py` coordinates scanner monitoring, queueing, TCP connection gating, retry, and shutdown.
 - `src/linux_usb_scanner_client/health.py` builds CLI health output from the service status table and queue state.
+- `src/linux_usb_scanner_client/auto_update.py` checks GitHub main for newer versions and applies updates through the root-owned update service.
 - `src/linux_usb_scanner_client/cli.py` is the command entry point.
 
 ## Security Rules
@@ -35,6 +36,7 @@ Every meaningful change must keep these files current:
 - Keep the SQLite queue under `/var/lib/linux-usb-scanner-client/` with ownership limited to the service user.
 - Preserve the app directory on every uninstall, including purge.
 - Preserve pending queued scans forever until they are delivered. Cleanup may remove only already-sent metadata.
+- Keep auto-update disabled by default. Enabling it allows a root systemd service to run `scripts/install.sh` from the configured Git repository branch, so it must remain restricted to trusted repositories.
 
 ## Development Workflow
 
@@ -52,7 +54,7 @@ Before editing scanner behavior, inspect the current `industrial-scanner-logger`
 
 ## Versioning
 
-The app starts at version `0.1.0`. Do not advance the version unless the user explicitly asks for a version bump. When a version bump is requested, keep `pyproject.toml`, `src/linux_usb_scanner_client/__init__.py`, `README.md`, and `CHANGELOG.md` aligned, and update the version consistency test.
+The app started at version `0.1.0`; the current prerelease version is `0.1.1`. Do not advance the version unless the user explicitly asks for a version bump. When a version bump is requested, keep `pyproject.toml`, `src/linux_usb_scanner_client/__init__.py`, `README.md`, and `CHANGELOG.md` aligned, and update the version consistency test.
 
 ## Deployment Workflow
 
@@ -64,7 +66,8 @@ The app starts at version `0.1.0`. Do not advance the version unless the user ex
 
 ## Operational Expectations
 
-- `linux-usb-scanner-client health` must show scanner state, server connection state, queue depth, oldest pending scan, heartbeat freshness, storage free space, and recent errors.
+- `linux-usb-scanner-client health` must show scanner state, server connection state, queue depth, oldest pending scan, heartbeat freshness, storage free space, auto-update state, and recent errors.
+- Human-readable `linux-usb-scanner-client health` output is ANSI-colored by default; use `--no-color` for plain text and `--json` for structured output.
 - `linux-usb-scanner-client list-devices` must help identify the correct scanner matcher for `/etc/linux-usb-scanner-client.conf`.
 - Server connection attempts are blocked whenever the scanner is unavailable.
 - Backlog delivery is best effort: failed TCP connects or sends leave scans queued with attempt metadata and retry later.

@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented here.
 
+## [0.1.1] - 2026-06-20
+
+### Documentation
+
+- Expanded scanner config comments with exact commands and examples for finding `vendor_id`, `product_id`, and `device_name`.
+
+### Added
+
+- Opt-in automatic updater that checks GitHub `main` for newer `pyproject.toml` versions, stops the app service, installs the new branch, and restarts the app.
+- Root-owned `linux-usb-scanner-client-update.service` and `linux-usb-scanner-client-update.timer` units for periodic update checks.
+- `linux-usb-scanner-client auto-update` CLI command with check-only and force modes.
+- Auto-update state, remote version, and update error visibility in CLI health output.
+- ANSI-colored CLI health output with `--no-color` support for plain text.
+
+### Changed
+
+- Bumped prerelease version to `0.1.1`.
+- Documented the auto-update security boundary and disabled-by-default update config.
+
 ## [0.1.0] - 2026-06-20
 
 ### Added

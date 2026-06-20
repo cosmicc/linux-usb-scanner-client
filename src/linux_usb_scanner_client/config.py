@@ -9,6 +9,7 @@ from pathlib import Path
 DEFAULT_CONFIG_PATH = Path("/etc/linux-usb-scanner-client.conf")
 DEFAULT_DATABASE_PATH = Path("/var/lib/linux-usb-scanner-client/scans.sqlite3")
 DEFAULT_LOG_PATH = Path("/var/log/linux-usb-scanner-client.log")
+DEFAULT_UPDATE_REPOSITORY_URL = "https://github.com/cosmicc/linux-usb-scanner-client.git"
 
 
 class ConfigError(ValueError):
@@ -71,6 +72,16 @@ class LoggingConfig:
 
 
 @dataclass(frozen=True)
+class UpdateConfig:
+    """Automatic update settings."""
+
+    enabled: bool = False
+    repository_url: str = DEFAULT_UPDATE_REPOSITORY_URL
+    branch: str = "main"
+    service_name: str = "linux-usb-scanner-client.service"
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """Complete application configuration."""
 
@@ -79,6 +90,7 @@ class AppConfig:
     server: ServerConfig
     buffer: BufferConfig
     logging: LoggingConfig
+    updates: UpdateConfig
 
 
 def load_config(path: Path | str = DEFAULT_CONFIG_PATH) -> AppConfig:
@@ -139,12 +151,30 @@ def load_config(path: Path | str = DEFAULT_CONFIG_PATH) -> AppConfig:
     if logging.log_level not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
         raise ConfigError("logging.log_level must be DEBUG, INFO, WARNING, ERROR, or CRITICAL")
 
+    updates = UpdateConfig(
+        enabled=_get_bool(parser, "updates", "enabled", False),
+        repository_url=_get_required_str(
+            parser,
+            "updates",
+            "repository_url",
+            DEFAULT_UPDATE_REPOSITORY_URL,
+        ),
+        branch=_get_required_str(parser, "updates", "branch", "main"),
+        service_name=_get_required_str(
+            parser,
+            "updates",
+            "service_name",
+            "linux-usb-scanner-client.service",
+        ),
+    )
+
     return AppConfig(
         path=config_path,
         scanner=scanner,
         server=server,
         buffer=buffer,
         logging=logging,
+        updates=updates,
     )
 
 

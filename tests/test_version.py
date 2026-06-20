@@ -7,6 +7,11 @@ import unittest
 from pathlib import Path
 
 from linux_usb_scanner_client import __version__
+from linux_usb_scanner_client.versioning import (
+    compare_versions,
+    is_newer_version,
+    parse_project_version,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -16,9 +21,9 @@ class VersionTests(unittest.TestCase):
 
     def test_project_version_matches_package_version(self) -> None:
         pyproject_text = (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
-        project_version = _project_version(pyproject_text)
+        project_version = parse_project_version(pyproject_text)
 
-        self.assertEqual(project_version, "0.1.0")
+        self.assertEqual(project_version, "0.1.1")
         self.assertEqual(__version__, project_version)
 
     def test_cli_prints_package_version(self) -> None:
@@ -37,20 +42,10 @@ class VersionTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertEqual(captured.getvalue().strip(), __version__)
 
-
-def _project_version(pyproject_text: str) -> str:
-    in_project_section = False
-    for line in pyproject_text.splitlines():
-        stripped = line.strip()
-        if stripped == "[project]":
-            in_project_section = True
-            continue
-        if in_project_section and stripped.startswith("["):
-            break
-        if in_project_section and stripped.startswith("version"):
-            _, value = stripped.split("=", 1)
-            return value.strip().strip('"')
-    raise AssertionError("project.version not found in pyproject.toml")
+    def test_version_comparison(self) -> None:
+        self.assertTrue(is_newer_version("0.1.1", "0.1.0"))
+        self.assertFalse(is_newer_version("0.1.0", "0.1.1"))
+        self.assertEqual(compare_versions("0.1.1", "0.1.1"), 0)
 
 
 if __name__ == "__main__":

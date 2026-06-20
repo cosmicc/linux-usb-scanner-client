@@ -13,7 +13,7 @@ scanner ready for industrial use.
 
 ## Current Behavior
 
-- Current version: `0.1.0`.
+- Current version: `0.1.1`.
 - Runs as `linux-usb-scanner-client.service` on Ubuntu.
 - Stores runtime settings in `/etc/linux-usb-scanner-client.conf`.
 - Reads one explicitly configured USB keyboard-wedge scanner from `/dev/input/event*`.
@@ -50,13 +50,16 @@ The installer:
 - installs the app under `/opt/linux-usb-scanner-client`;
 - creates a Python virtual environment;
 - installs `/etc/linux-usb-scanner-client.conf` if it does not already exist;
-- installs and starts `linux-usb-scanner-client.service`.
+- installs and starts `linux-usb-scanner-client.service`;
+- installs and starts `linux-usb-scanner-client-update.timer`.
 
 The existing config is preserved unless you run:
 
 ```bash
 sudo scripts/install.sh --overwrite-config
 ```
+
+Auto-update checks require `git`. The installer warns if `git` is missing.
 
 ## Configure the Scanner
 
@@ -71,6 +74,11 @@ Example output:
 ```text
 /dev/input/event4  name='Honeywell USB Keyboard'  vendor_id=0x0c2e  product_id=0x0901  phys='usb-0000:00:14.0-1/input0'
 ```
+
+The config comments in `/etc/linux-usb-scanner-client.conf` show how to map the
+`list-devices` output into `device_path`, `vendor_id`, `product_id`, and
+`device_name`. Prefer `vendor_id` plus `product_id` because `/dev/input/event*`
+numbers can change after a reboot or USB reconnect.
 
 Edit `/etc/linux-usb-scanner-client.conf` and set a specific scanner matcher:
 
@@ -101,7 +109,7 @@ Set the logger target in `/etc/linux-usb-scanner-client.conf`:
 host = 10.10.10.5
 port = 55256
 connect_timeout = 5
-send_timeout = 5
+send_timeout = 1
 retry_interval = 5
 poll_interval = 1
 tcp_keepalive = true
@@ -117,6 +125,16 @@ Human-readable health:
 
 ```bash
 sudo /opt/linux-usb-scanner-client/venv/bin/linux-usb-scanner-client health
+```
+
+Human-readable health is ANSI-colored by default: healthy/up values are green,
+warnings are yellow, down/error values are red, labels are cyan, and paths or
+targets use accent colors for readability.
+
+Plain text health:
+
+```bash
+sudo /opt/linux-usb-scanner-client/venv/bin/linux-usb-scanner-client health --no-color
 ```
 
 JSON health:
@@ -136,6 +154,7 @@ Health includes:
 - maximum pending retry attempts;
 - last scan time and scan length;
 - last delivery time;
+- auto-update state and last remote version seen;
 - recent scanner or server error.
 
 Raw barcode payloads are intentionally not printed in health output.
@@ -157,6 +176,43 @@ The health check reports free space on the queue database filesystem and marks
 health degraded when it drops below `buffer.storage_min_free_mb`. Provision more
 disk or move `buffer.database_path` before that threshold is reached; the app
 will not delete pending scans to make room.
+
+## Auto Update
+
+Auto-update is installed as a separate root-owned systemd timer so the scanner
+service can continue running as the restricted `linux-usb-scanner-client` user.
+The timer runs every 15 minutes, but it does nothing until explicitly enabled in
+`/etc/linux-usb-scanner-client.conf`:
+
+```ini
+[updates]
+enabled = true
+repository_url = https://github.com/cosmicc/linux-usb-scanner-client.git
+branch = main
+service_name = linux-usb-scanner-client.service
+```
+
+When enabled, the updater maintains a Git checkout under
+`/var/lib/linux-usb-scanner-client/updates/`, fetches the configured branch,
+reads its `pyproject.toml` version, and compares it to the installed package
+version. If GitHub `main` has a newer version, it stops the app service, runs
+the new branch's `scripts/install.sh`, and the installer restarts the app.
+
+Security note: enabling auto-update allows a root systemd service to run the
+install script from the configured repository branch. Only enable it for a
+repository and branch you control.
+
+Manual update check:
+
+```bash
+sudo /opt/linux-usb-scanner-client/venv/bin/linux-usb-scanner-client auto-update --check-only --force
+```
+
+Manual forced reinstall from the configured branch, even when versions match:
+
+```bash
+sudo /opt/linux-usb-scanner-client/venv/bin/linux-usb-scanner-client auto-update --force
+```
 
 ## Uninstall
 
