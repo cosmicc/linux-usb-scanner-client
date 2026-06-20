@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "linux-usb-scanner-client"
+version = "0.1.0"
+description = "Linux service that forwards USB keyboard-wedge scanner input to industrial-scanner-logger over TCP."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+authors = [{ name = "cosmicc" }]
+dependencies = [
+    "evdev>=1.6,<2",
+]
+
+[project.scripts]
+linux-usb-scanner-client = "linux_usb_scanner_client.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

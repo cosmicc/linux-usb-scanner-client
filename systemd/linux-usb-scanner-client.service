@@ -1,0 +1,24 @@
+[Unit]
+Description=Linux USB Scanner Client
+Documentation=https://github.com/cosmicc/linux-usb-scanner-client
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=linux-usb-scanner-client
+Group=linux-usb-scanner-client
+SupplementaryGroups=input
+WorkingDirectory=/opt/linux-usb-scanner-client
+ExecStart=/opt/linux-usb-scanner-client/venv/bin/linux-usb-scanner-client --config /etc/linux-usb-scanner-client.conf service
+Restart=always
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/linux-usb-scanner-client /var/log/linux-usb-scanner-client.log
+
+[Install]
+WantedBy=multi-user.target
