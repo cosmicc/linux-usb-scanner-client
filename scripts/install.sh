@@ -12,6 +12,19 @@ UNIT_PATH="/etc/systemd/system/linux-usb-scanner-client.service"
 MONITOR_UNIT_PATH="/etc/systemd/system/linux-usb-scanner-client-monitor.service"
 UPDATE_UNIT_PATH="/etc/systemd/system/linux-usb-scanner-client-update.service"
 UPDATE_TIMER_PATH="/etc/systemd/system/linux-usb-scanner-client-update.timer"
+REQUIRED_APT_PACKAGES=(
+  ca-certificates
+  git
+  python3
+  python3-dev
+  python3-pip
+  python3-venv
+  build-essential
+  alsa-utils
+)
+OPTIONAL_APT_PACKAGES=(
+  beep
+)
 
 usage() {
   cat <<'USAGE'
@@ -52,14 +65,57 @@ fi
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 
-command -v python3 >/dev/null 2>&1 || {
-  echo "python3 is required." >&2
-  exit 1
+package_installed() {
+  local package="$1"
+  dpkg-query -W -f='${Status}' "${package}" 2>/dev/null | grep -q "install ok installed"
 }
 
-if ! command -v git >/dev/null 2>&1; then
-  echo "Warning: git is not installed. Auto-update checks will fail until git is installed." >&2
-fi
+install_ubuntu_packages() {
+  if ! command -v apt-get >/dev/null 2>&1; then
+    echo "apt-get is required. This installer is intended for Ubuntu systems." >&2
+    exit 1
+  fi
+
+  local package
+  local missing_required=()
+  local missing_optional=()
+
+  for package in "${REQUIRED_APT_PACKAGES[@]}"; do
+    if ! package_installed "${package}"; then
+      missing_required+=("${package}")
+    fi
+  done
+
+  for package in "${OPTIONAL_APT_PACKAGES[@]}"; do
+    if ! package_installed "${package}"; then
+      missing_optional+=("${package}")
+    fi
+  done
+
+  if [[ "${#missing_required[@]}" -eq 0 && "${#missing_optional[@]}" -eq 0 ]]; then
+    echo "Required Ubuntu packages are already installed."
+    return
+  fi
+
+  export DEBIAN_FRONTEND=noninteractive
+  echo "Updating apt package lists..."
+  apt-get update
+
+  if [[ "${#missing_required[@]}" -gt 0 ]]; then
+    echo "Installing required Ubuntu packages: ${missing_required[*]}"
+    apt-get install -y --no-install-recommends "${missing_required[@]}"
+  fi
+
+  if [[ "${#missing_optional[@]}" -gt 0 ]]; then
+    echo "Installing optional Ubuntu packages: ${missing_optional[*]}"
+    if ! apt-get install -y --no-install-recommends "${missing_optional[@]}"; then
+      echo "Warning: optional package install failed: ${missing_optional[*]}" >&2
+      echo "The app can still run, but the matching optional alert backend may be unavailable." >&2
+    fi
+  fi
+}
+
+install_ubuntu_packages
 
 if ! getent group "${SERVICE_GROUP}" >/dev/null; then
   groupadd --system "${SERVICE_GROUP}"

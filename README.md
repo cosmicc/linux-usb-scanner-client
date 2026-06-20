@@ -33,7 +33,7 @@ GUI.
 
 ## Current Behavior
 
-- Current version: `0.1.2`.
+- Current version: `0.1.3`.
 - Runs as `linux-usb-scanner-client.service` on Ubuntu.
 - Runs a separate `linux-usb-scanner-client-monitor.service` for degraded-state beep alerts.
 - Stores runtime settings in `/etc/linux-usb-scanner-client.conf`.
@@ -67,6 +67,11 @@ sudo scripts/install.sh
 
 The installer:
 
+- installs required Ubuntu packages when missing: `ca-certificates`, `git`,
+  `python3`, `python3-dev`, `python3-pip`, `python3-venv`,
+  `build-essential`, and `alsa-utils`;
+- attempts to install the optional `beep` package for system-speaker alerting,
+  and continues with a warning if that package is unavailable;
 - creates a `linux-usb-scanner-client` system user and group;
 - adds the service user to the `input` group so it can read `/dev/input/event*`;
 - installs the app under `/opt/linux-usb-scanner-client`;
@@ -82,7 +87,8 @@ The existing config is preserved unless you run:
 sudo scripts/install.sh --overwrite-config
 ```
 
-Auto-update checks require `git`. The installer warns if `git` is missing.
+The installer uses Ubuntu `apt-get`, so the host needs access to configured apt
+repositories during installation or upgrade.
 
 ## Configure the Scanner
 

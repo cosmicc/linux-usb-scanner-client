@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here.
 
+## [0.1.3] - 2026-06-20
+
+### Changed
+
+- Installer now installs required Ubuntu packages when missing, including `git`,
+  Python venv/build support, certificate roots, and ALSA audio tools.
+- Installer now attempts to install the optional `beep` package for system
+  speaker alerting and continues with a warning if it is unavailable.
+- Bumped prerelease version to `0.1.3`.
+
 ## [0.1.2] - 2026-06-20
 
 ### Documentation

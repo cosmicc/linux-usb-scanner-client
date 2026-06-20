@@ -55,12 +55,13 @@ Before editing scanner behavior, inspect the current `industrial-scanner-logger`
 
 ## Versioning
 
-The app started at version `0.1.0`; the current prerelease version is `0.1.2`. Do not advance the version unless the user explicitly asks for a version bump. When a version bump is requested, keep `pyproject.toml`, `src/linux_usb_scanner_client/__init__.py`, `README.md`, and `CHANGELOG.md` aligned, and update the version consistency test.
+The app started at version `0.1.0`; the current prerelease version is `0.1.3`. Do not advance the version unless the user explicitly asks for a version bump. When a version bump is requested, keep `pyproject.toml`, `src/linux_usb_scanner_client/__init__.py`, `README.md`, and `CHANGELOG.md` aligned, and update the version consistency test.
 
 ## Deployment Workflow
 
 - Update `config/linux-usb-scanner-client.conf` when adding or changing settings.
 - Update `systemd/linux-usb-scanner-client.service`, `systemd/linux-usb-scanner-client-monitor.service`, and `scripts/install.sh` together when service paths, users, permissions, alerting, or startup behavior change.
+- Keep the Ubuntu package dependency lists in `scripts/install.sh` aligned with runtime, build, auto-update, and alerting needs, and document any dependency changes in `README.md`.
 - Keep `scripts/install.sh` and `scripts/uninstall.sh` non-destructive to `/opt/linux-usb-scanner-client`.
 - Run `bash -n scripts/install.sh scripts/uninstall.sh` after shell script changes.
 - Run `PYTHONPATH=src python -m unittest discover -s tests` after Python changes.
