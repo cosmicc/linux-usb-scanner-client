@@ -9,6 +9,7 @@ CONFIG_PATH="/etc/linux-usb-scanner-client.conf"
 STATE_DIR="/var/lib/linux-usb-scanner-client"
 LOG_PATH="/var/log/linux-usb-scanner-client.log"
 UNIT_PATH="/etc/systemd/system/linux-usb-scanner-client.service"
+MONITOR_UNIT_PATH="/etc/systemd/system/linux-usb-scanner-client-monitor.service"
 UPDATE_UNIT_PATH="/etc/systemd/system/linux-usb-scanner-client-update.service"
 UPDATE_TIMER_PATH="/etc/systemd/system/linux-usb-scanner-client-update.timer"
 
@@ -53,9 +54,11 @@ fi
 systemctl stop "${APP_NAME}-update.timer" 2>/dev/null || true
 systemctl disable "${APP_NAME}-update.timer" 2>/dev/null || true
 systemctl stop "${APP_NAME}-update.service" 2>/dev/null || true
+systemctl stop "${APP_NAME}-monitor.service" 2>/dev/null || true
+systemctl disable "${APP_NAME}-monitor.service" 2>/dev/null || true
 systemctl stop "${APP_NAME}.service" 2>/dev/null || true
 systemctl disable "${APP_NAME}.service" 2>/dev/null || true
-rm -f "${UNIT_PATH}" "${UPDATE_UNIT_PATH}" "${UPDATE_TIMER_PATH}"
+rm -f "${UNIT_PATH}" "${MONITOR_UNIT_PATH}" "${UPDATE_UNIT_PATH}" "${UPDATE_TIMER_PATH}"
 systemctl daemon-reload
 
 if [[ "${PURGE}" == true ]]; then

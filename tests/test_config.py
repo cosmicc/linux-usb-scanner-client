@@ -47,6 +47,11 @@ log_level = info
         self.assertEqual(config.buffer.storage_min_free_mb, 1024)
         self.assertFalse(config.updates.enabled)
         self.assertEqual(config.updates.branch, "main")
+        self.assertTrue(config.alerting.enabled)
+        self.assertEqual(config.alerting.interval_seconds, 5.0)
+        self.assertEqual(config.alerting.server_unavailable_beeps, 1)
+        self.assertEqual(config.alerting.scanner_unavailable_beeps, 3)
+        self.assertEqual(config.alerting.app_not_running_beeps, 5)
         self.assertEqual(config.logging.log_level, "INFO")
         self.assertEqual(validate_operational_config(config), [])
 

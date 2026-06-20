@@ -25,6 +25,7 @@ Every meaningful change must keep these files current:
 - `src/linux_usb_scanner_client/service.py` coordinates scanner monitoring, queueing, TCP connection gating, retry, and shutdown.
 - `src/linux_usb_scanner_client/health.py` builds CLI health output from the service status table and queue state.
 - `src/linux_usb_scanner_client/auto_update.py` checks GitHub main for newer versions and applies updates through the root-owned update service.
+- `src/linux_usb_scanner_client/alert_monitor.py` runs the independent degraded-state beep monitor service.
 - `src/linux_usb_scanner_client/cli.py` is the command entry point.
 
 ## Security Rules
@@ -54,21 +55,22 @@ Before editing scanner behavior, inspect the current `industrial-scanner-logger`
 
 ## Versioning
 
-The app started at version `0.1.0`; the current prerelease version is `0.1.1`. Do not advance the version unless the user explicitly asks for a version bump. When a version bump is requested, keep `pyproject.toml`, `src/linux_usb_scanner_client/__init__.py`, `README.md`, and `CHANGELOG.md` aligned, and update the version consistency test.
+The app started at version `0.1.0`; the current prerelease version is `0.1.2`. Do not advance the version unless the user explicitly asks for a version bump. When a version bump is requested, keep `pyproject.toml`, `src/linux_usb_scanner_client/__init__.py`, `README.md`, and `CHANGELOG.md` aligned, and update the version consistency test.
 
 ## Deployment Workflow
 
 - Update `config/linux-usb-scanner-client.conf` when adding or changing settings.
-- Update `systemd/linux-usb-scanner-client.service` and `scripts/install.sh` together when service paths, users, permissions, or startup behavior change.
+- Update `systemd/linux-usb-scanner-client.service`, `systemd/linux-usb-scanner-client-monitor.service`, and `scripts/install.sh` together when service paths, users, permissions, alerting, or startup behavior change.
 - Keep `scripts/install.sh` and `scripts/uninstall.sh` non-destructive to `/opt/linux-usb-scanner-client`.
 - Run `bash -n scripts/install.sh scripts/uninstall.sh` after shell script changes.
 - Run `PYTHONPATH=src python -m unittest discover -s tests` after Python changes.
 
 ## Operational Expectations
 
-- `linux-usb-scanner-client health` must show scanner state, server connection state, queue depth, oldest pending scan, heartbeat freshness, storage free space, auto-update state, and recent errors.
+- `linux-usb-scanner-client health` must show scanner state, server connection state, queue depth, oldest pending scan, heartbeat freshness, storage free space, auto-update state, alert monitor state, and recent errors.
 - Human-readable `linux-usb-scanner-client health` output is ANSI-colored by default; use `--no-color` for plain text and `--json` for structured output.
 - `linux-usb-scanner-client list-devices` must help identify the correct scanner matcher for `/etc/linux-usb-scanner-client.conf`.
+- `linux-usb-scanner-client monitor` is a separate auto-starting service that plays the highest-priority active alert pattern: 5 quick beeps when the app service heartbeat is stale, 3 quick beeps when the USB scanner is unavailable, and 1 quick beep when the server is unreachable.
 - Server connection attempts are blocked whenever the scanner is unavailable.
 - Backlog delivery is best effort: failed TCP connects or sends leave scans queued with attempt metadata and retry later.
 - All client-generated timestamps must be UTC ISO-8601 strings ending in `Z`. The TCP wire protocol sends barcode frames only; server-side scan timestamps are controlled by `industrial-scanner-logger`.

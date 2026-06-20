@@ -82,6 +82,24 @@ class UpdateConfig:
 
 
 @dataclass(frozen=True)
+class AlertingConfig:
+    """Independent monitor beep alert settings."""
+
+    enabled: bool = True
+    interval_seconds: float = 5.0
+    beep_duration_ms: int = 120
+    beep_gap_ms: int = 120
+    tone_hz: int = 1000
+    backend: str = "auto"
+    console_device: str = "/dev/console"
+    aplay_command: str = "aplay"
+    beep_command: str = "beep"
+    server_unavailable_beeps: int = 1
+    scanner_unavailable_beeps: int = 3
+    app_not_running_beeps: int = 5
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """Complete application configuration."""
 
@@ -91,6 +109,7 @@ class AppConfig:
     buffer: BufferConfig
     logging: LoggingConfig
     updates: UpdateConfig
+    alerting: AlertingConfig
 
 
 def load_config(path: Path | str = DEFAULT_CONFIG_PATH) -> AppConfig:
@@ -168,6 +187,37 @@ def load_config(path: Path | str = DEFAULT_CONFIG_PATH) -> AppConfig:
         ),
     )
 
+    alerting = AlertingConfig(
+        enabled=_get_bool(parser, "alerting", "enabled", True),
+        interval_seconds=_get_positive_float(
+            parser, "alerting", "interval_seconds", 5.0
+        ),
+        beep_duration_ms=_get_positive_int(
+            parser, "alerting", "beep_duration_ms", 120
+        ),
+        beep_gap_ms=_get_nonnegative_int(parser, "alerting", "beep_gap_ms", 120),
+        tone_hz=_get_positive_int(parser, "alerting", "tone_hz", 1000),
+        backend=_get_required_str(parser, "alerting", "backend", "auto").lower(),
+        console_device=_get_required_str(
+            parser, "alerting", "console_device", "/dev/console"
+        ),
+        aplay_command=_get_required_str(parser, "alerting", "aplay_command", "aplay"),
+        beep_command=_get_required_str(parser, "alerting", "beep_command", "beep"),
+        server_unavailable_beeps=_get_positive_int(
+            parser, "alerting", "server_unavailable_beeps", 1
+        ),
+        scanner_unavailable_beeps=_get_positive_int(
+            parser, "alerting", "scanner_unavailable_beeps", 3
+        ),
+        app_not_running_beeps=_get_positive_int(
+            parser, "alerting", "app_not_running_beeps", 5
+        ),
+    )
+    if alerting.backend not in {"auto", "aplay", "beep", "console_bell", "stdout"}:
+        raise ConfigError(
+            "alerting.backend must be auto, aplay, beep, console_bell, or stdout"
+        )
+
     return AppConfig(
         path=config_path,
         scanner=scanner,
@@ -175,6 +225,7 @@ def load_config(path: Path | str = DEFAULT_CONFIG_PATH) -> AppConfig:
         buffer=buffer,
         logging=logging,
         updates=updates,
+        alerting=alerting,
     )
 
 

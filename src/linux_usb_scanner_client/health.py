@@ -44,6 +44,11 @@ class HealthReport:
     update_remote_commit: str | None
     update_message: str | None
     update_error: str | None
+    monitor_state: str
+    monitor_alert: str | None
+    monitor_alert_beeps: int | None
+    monitor_checked_at: str | None
+    monitor_error: str | None
     last_scan_at: str | None
     last_scan_length: int | None
     last_delivery_at: str | None
@@ -124,6 +129,13 @@ def build_health_report(config: AppConfig) -> HealthReport:
         update_remote_commit=_status_value(status, "update_remote_commit"),
         update_message=_status_value(status, "update_message"),
         update_error=_status_value(status, "update_error"),
+        monitor_state=_status_value(status, "monitor_state") or (
+            "enabled" if config.alerting.enabled else "disabled"
+        ),
+        monitor_alert=_empty_to_none(_status_value(status, "monitor_alert")),
+        monitor_alert_beeps=_optional_int(_status_value(status, "monitor_alert_beeps")),
+        monitor_checked_at=_status_value(status, "monitor_last_check_at"),
+        monitor_error=_empty_to_none(_status_value(status, "monitor_error")),
         last_scan_at=_status_value(status, "last_scan_at"),
         last_scan_length=_optional_int(_status_value(status, "last_scan_length")),
         last_delivery_at=_status_value(status, "last_delivery_at"),
@@ -238,6 +250,31 @@ def format_health_text(report: HealthReport, *, use_color: bool = True) -> str:
             _paint_unknown(report.update_remote_version or "none", use_color),
             use_color,
         ),
+        _line(
+            "Alert monitor",
+            _paint_status(report.monitor_state, _monitor_color(report.monitor_state), use_color),
+            use_color,
+        ),
+        _line(
+            "Alert pattern",
+            _paint_unknown(report.monitor_alert or "none", use_color),
+            use_color,
+        ),
+        _line(
+            "Alert beeps",
+            _paint_unknown(
+                str(report.monitor_alert_beeps)
+                if report.monitor_alert_beeps is not None
+                else "none",
+                use_color,
+            ),
+            use_color,
+        ),
+        _line(
+            "Alert checked",
+            _paint_unknown(report.monitor_checked_at or "none", use_color),
+            use_color,
+        ),
         _line("Last scan", _paint_unknown(report.last_scan_at or "none", use_color), use_color),
         _line(
             "Last scan length",
@@ -253,6 +290,8 @@ def format_health_text(report: HealthReport, *, use_color: bool = True) -> str:
         lines.append(_line("Last error", _paint_status(report.last_error, ANSI_RED, use_color), use_color))
     if report.update_error:
         lines.append(_line("Update error", _paint_status(report.update_error, ANSI_RED, use_color), use_color))
+    if report.monitor_error:
+        lines.append(_line("Alert monitor error", _paint_status(report.monitor_error, ANSI_RED, use_color), use_color))
     if report.update_message:
         lines.append(_line("Update message", _paint_unknown(report.update_message, use_color), use_color))
     if report.warnings:
@@ -275,6 +314,12 @@ def _optional_int(value: str | None) -> int | None:
         return int(value)
     except ValueError:
         return None
+
+
+def _empty_to_none(value: str | None) -> str | None:
+    if value is None or value == "":
+        return None
+    return value
 
 
 def _format_bytes(value: int) -> str:
@@ -339,5 +384,13 @@ def _update_color(update_state: str) -> str:
     if update_state in {"up_to_date", "updated", "disabled", "enabled"}:
         return ANSI_GREEN
     if update_state in {"checking", "update_available", "updating"}:
+        return ANSI_YELLOW
+    return ANSI_RED
+
+
+def _monitor_color(monitor_state: str) -> str:
+    if monitor_state in {"healthy", "disabled", "enabled"}:
+        return ANSI_GREEN
+    if monitor_state == "alerting":
         return ANSI_YELLOW
     return ANSI_RED

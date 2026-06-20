@@ -9,6 +9,7 @@ CONFIG_PATH="/etc/linux-usb-scanner-client.conf"
 STATE_DIR="/var/lib/linux-usb-scanner-client"
 LOG_PATH="/var/log/linux-usb-scanner-client.log"
 UNIT_PATH="/etc/systemd/system/linux-usb-scanner-client.service"
+MONITOR_UNIT_PATH="/etc/systemd/system/linux-usb-scanner-client-monitor.service"
 UPDATE_UNIT_PATH="/etc/systemd/system/linux-usb-scanner-client-update.service"
 UPDATE_TIMER_PATH="/etc/systemd/system/linux-usb-scanner-client-update.timer"
 
@@ -107,6 +108,9 @@ install -o root -g root -m 0644 \
   "${INSTALL_DIR}/systemd/linux-usb-scanner-client.service" \
   "${UNIT_PATH}"
 install -o root -g root -m 0644 \
+  "${INSTALL_DIR}/systemd/linux-usb-scanner-client-monitor.service" \
+  "${MONITOR_UNIT_PATH}"
+install -o root -g root -m 0644 \
   "${INSTALL_DIR}/systemd/linux-usb-scanner-client-update.service" \
   "${UPDATE_UNIT_PATH}"
 install -o root -g root -m 0644 \
@@ -115,11 +119,14 @@ install -o root -g root -m 0644 \
 
 systemctl daemon-reload
 systemctl enable "${APP_NAME}.service"
+systemctl enable "${APP_NAME}-monitor.service"
 systemctl enable "${APP_NAME}-update.timer"
 systemctl restart "${APP_NAME}-update.timer"
 systemctl restart "${APP_NAME}.service"
+systemctl restart "${APP_NAME}-monitor.service"
 
 echo "Installed ${APP_NAME}."
 echo "Edit ${CONFIG_PATH}, then run: sudo systemctl restart ${APP_NAME}"
 echo "Check health with: sudo ${INSTALL_DIR}/venv/bin/linux-usb-scanner-client health"
 echo "Auto-update timer is installed; set [updates] enabled = true in ${CONFIG_PATH} to allow updates."
+echo "Alert monitor is installed; configure [alerting] in ${CONFIG_PATH} for beep behavior."

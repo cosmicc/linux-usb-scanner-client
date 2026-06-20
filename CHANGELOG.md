@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented here.
 
+## [0.1.2] - 2026-06-20
+
+### Documentation
+
+- Clarified that this app requires `industrial-scanner-logger` to accept scan events and that this project is the Linux counterpart to the Windows USB Scanner Client.
+
+### Added
+
+- Independent `linux-usb-scanner-client-monitor.service` for continuous degraded-state beep alerts.
+- Configurable `[alerting]` settings for beep interval, backend, tone, and alert patterns.
+- `linux-usb-scanner-client monitor` CLI command with one-shot health evaluation and test-beep mode.
+- Alert monitor state, active pattern, and beep count visibility in CLI health output.
+
+### Changed
+
+- Bumped prerelease version to `0.1.2`.
+- Installer and uninstaller now manage the independent alert monitor service while preserving the app directory.
+
 ## [0.1.1] - 2026-06-20
 
 ### Documentation

@@ -7,6 +7,7 @@ import json
 import sys
 
 from . import __version__
+from .alert_monitor import AlertMonitor, AlertMonitorError
 from .auto_update import AutoUpdateError, AutoUpdater, format_update_result
 from .config import DEFAULT_CONFIG_PATH, ConfigError, load_config, validate_operational_config
 from .device import DeviceError, list_keyboard_devices
@@ -74,6 +75,18 @@ def main(argv: list[str] | None = None) -> int:
         service = ScannerClientService(config)
         return service.run()
 
+    if args.command == "monitor":
+        configure_logging(config.logging)
+        monitor = AlertMonitor(config)
+        try:
+            if args.test_beep:
+                monitor.test_beep(args.test_beep)
+                return 0
+            return monitor.run(once=args.once)
+        except AlertMonitorError as exc:
+            print(f"Alert monitor error: {exc}", file=sys.stderr)
+            return 1
+
     parser.print_help()
     return 1
 
@@ -94,6 +107,22 @@ def _build_parser() -> argparse.ArgumentParser:
 
     service_parser = subparsers.add_parser("service", help="Run the long-lived service.")
     service_parser.set_defaults(command="service")
+
+    monitor_parser = subparsers.add_parser(
+        "monitor",
+        help="Run the independent degraded-state beep monitor.",
+    )
+    monitor_parser.add_argument(
+        "--once",
+        action="store_true",
+        help="Evaluate health once, persist monitor status, and exit without beeping.",
+    )
+    monitor_parser.add_argument(
+        "--test-beep",
+        choices=["server_unavailable", "scanner_unavailable", "app_not_running"],
+        help="Play one configured beep pattern and exit.",
+    )
+    monitor_parser.set_defaults(command="monitor")
 
     health_parser = subparsers.add_parser("health", help="Show service health.")
     health_parser.add_argument("--json", action="store_true", help="Emit JSON health data.")

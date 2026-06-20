@@ -11,10 +11,31 @@ This is the Linux counterpart to the Windows
 not provide a GUI. It is meant to run continuously under systemd and keep the
 scanner ready for industrial use.
 
+## Required Server Component
+
+This app requires the Industrial Scanner Logger server app to accept and process
+scan events:
+
+https://github.com/cosmicc/industrial-scanner-logger/tree/dev
+
+`linux-usb-scanner-client` does not classify scans, write the production scan
+database, handle duplicates, or serve the scanner dashboard. Its job is to keep
+the Linux USB scanner available, buffer scans locally when needed, and forward
+each scan to `industrial-scanner-logger` over TCP.
+
+This project is the Linux service version of the Windows USB Scanner Client app:
+
+https://github.com/cosmicc/usb-scanner-client
+
+Use the Windows app on Windows scanner workstations. Use this Linux service on
+Ubuntu scanner hosts that need the same TCP scan forwarding behavior without a
+GUI.
+
 ## Current Behavior
 
-- Current version: `0.1.1`.
+- Current version: `0.1.2`.
 - Runs as `linux-usb-scanner-client.service` on Ubuntu.
+- Runs a separate `linux-usb-scanner-client-monitor.service` for degraded-state beep alerts.
 - Stores runtime settings in `/etc/linux-usb-scanner-client.conf`.
 - Reads one explicitly configured USB keyboard-wedge scanner from `/dev/input/event*`.
 - Completes scans only when the scanner sends Enter, CR, LF, or CRLF.
@@ -25,6 +46,7 @@ scanner ready for industrial use.
 - Buffers scans in `/var/lib/linux-usb-scanner-client/scans.sqlite3` if the server is unavailable.
 - Drains queued scans in capture order after the server is reachable again.
 - Provides CLI health output with scanner state, server state, queue depth, backlog age, queue storage free space, heartbeat, and recent errors.
+- Beeps continuously during degraded states when alerting is enabled.
 - Avoids logging raw barcode values.
 
 The server derives `scanner_id` from the last octet of the client computer's
@@ -51,6 +73,7 @@ The installer:
 - creates a Python virtual environment;
 - installs `/etc/linux-usb-scanner-client.conf` if it does not already exist;
 - installs and starts `linux-usb-scanner-client.service`;
+- installs and starts `linux-usb-scanner-client-monitor.service`;
 - installs and starts `linux-usb-scanner-client-update.timer`.
 
 The existing config is preserved unless you run:
@@ -155,6 +178,7 @@ Health includes:
 - last scan time and scan length;
 - last delivery time;
 - auto-update state and last remote version seen;
+- alert monitor state, active beep pattern, and last monitor check;
 - recent scanner or server error.
 
 Raw barcode payloads are intentionally not printed in health output.
@@ -176,6 +200,54 @@ The health check reports free space on the queue database filesystem and marks
 health degraded when it drops below `buffer.storage_min_free_mb`. Provision more
 disk or move `buffer.database_path` before that threshold is reached; the app
 will not delete pending scans to make room.
+
+## Degraded-State Beep Alerts
+
+The installer also starts `linux-usb-scanner-client-monitor.service`. This is a
+separate monitor that checks the health data written by the scanner service and
+plays the highest-priority active beep pattern:
+
+- `5` quick beeps every interval when the scanner app service is not running or
+  its heartbeat is stale.
+- `3` quick beeps every interval when the configured USB scanner is not detected.
+- `1` quick beep every interval when the Industrial Scanner Logger server is not
+  contactable.
+
+Configure the monitor in `/etc/linux-usb-scanner-client.conf`:
+
+```ini
+[alerting]
+enabled = true
+interval_seconds = 5
+backend = auto
+server_unavailable_beeps = 1
+scanner_unavailable_beeps = 3
+app_not_running_beeps = 5
+```
+
+Restart the monitor after changing alerting settings:
+
+```bash
+sudo systemctl restart linux-usb-scanner-client-monitor
+```
+
+`backend = auto` tries ALSA audio through `aplay`, then the Linux `beep`
+command, then a console bell. Different Ubuntu installs expose different sound
+paths: the `beep` backend may require the `beep` package and system speaker
+support, while the `aplay` backend may require ALSA output to be configured.
+Use `enabled = false` to keep the monitor service running without making sound.
+
+Test one pattern:
+
+```bash
+sudo /opt/linux-usb-scanner-client/venv/bin/linux-usb-scanner-client monitor --test-beep scanner_unavailable
+```
+
+Evaluate monitor state once without beeping:
+
+```bash
+sudo /opt/linux-usb-scanner-client/venv/bin/linux-usb-scanner-client monitor --once
+```
 
 ## Auto Update
 

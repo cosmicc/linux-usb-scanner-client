@@ -1,0 +1,20 @@
+[Unit]
+Description=Linux USB Scanner Client Degraded-State Beep Monitor
+Documentation=https://github.com/cosmicc/linux-usb-scanner-client
+After=multi-user.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/linux-usb-scanner-client
+ExecStart=/opt/linux-usb-scanner-client/venv/bin/linux-usb-scanner-client --config /etc/linux-usb-scanner-client.conf monitor
+Restart=always
+RestartSec=2
+NoNewPrivileges=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/linux-usb-scanner-client /var/log/linux-usb-scanner-client.log /dev/console
+
+[Install]
+WantedBy=multi-user.target
