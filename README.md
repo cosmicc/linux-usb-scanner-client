@@ -1,8 +1,8 @@
 # Linux USB Scanner Client
 
-Headless Ubuntu service for USB keyboard-wedge barcode scanners. It reads scans
-from a configured Linux input device, stores completed scans in a persistent
-SQLite queue, and forwards them to
+Headless Debian/Ubuntu service for USB keyboard-wedge barcode scanners. It
+reads scans from a configured Linux input device, stores completed scans in a
+persistent SQLite queue, and forwards them to
 [`industrial-scanner-logger`](https://github.com/cosmicc/industrial-scanner-logger/tree/dev)
 over TCP.
 
@@ -28,13 +28,13 @@ This project is the Linux service version of the Windows USB Scanner Client app:
 https://github.com/cosmicc/usb-scanner-client
 
 Use the Windows app on Windows scanner workstations. Use this Linux service on
-Ubuntu scanner hosts that need the same TCP scan forwarding behavior without a
-GUI.
+Debian or Ubuntu scanner hosts that need the same TCP scan forwarding behavior
+without a GUI.
 
 ## Current Behavior
 
 - Current version: `0.1.3`.
-- Runs as `linux-usb-scanner-client.service` on Ubuntu.
+- Runs as `linux-usb-scanner-client.service` on Debian and Ubuntu.
 - Runs a separate `linux-usb-scanner-client-monitor.service` for degraded-state beep alerts.
 - Stores runtime settings in `/etc/linux-usb-scanner-client.conf`.
 - Reads one explicitly configured USB keyboard-wedge scanner from `/dev/input/event*`.
@@ -47,6 +47,8 @@ GUI.
 - Drains queued scans in capture order after the server is reachable again.
 - Provides CLI health output with scanner state, server state, queue depth, backlog age, queue storage free space, heartbeat, and recent errors.
 - Beeps continuously during degraded states when alerting is enabled.
+- Uses the system speaker first for beep alerts, falls back to the audio card,
+  and keeps console bell as a final fallback when `backend = auto`.
 - Avoids logging raw barcode values.
 
 The server derives `scanner_id` from the last octet of the client computer's
@@ -59,7 +61,7 @@ responsible for its own server-side receive timestamp.
 
 ## Install
 
-From the project directory on Ubuntu:
+From the project directory on Debian 12 or newer, or Ubuntu 22.04 or newer:
 
 ```bash
 sudo scripts/install.sh
@@ -67,7 +69,9 @@ sudo scripts/install.sh
 
 The installer:
 
-- installs required Ubuntu packages when missing: `ca-certificates`, `git`,
+- verifies `systemctl`, the `input` group, and `python3` 3.10 or newer before
+  installing the service;
+- installs required Debian/Ubuntu packages when missing: `ca-certificates`, `git`,
   `python3`, `python3-dev`, `python3-pip`, `python3-venv`,
   `build-essential`, and `alsa-utils`;
 - attempts to install the optional `beep` package for system-speaker alerting,
@@ -87,8 +91,11 @@ The existing config is preserved unless you run:
 sudo scripts/install.sh --overwrite-config
 ```
 
-The installer uses Ubuntu `apt-get`, so the host needs access to configured apt
-repositories during installation or upgrade.
+The installer uses Debian/Ubuntu `apt-get`, so the host needs access to
+configured apt repositories during installation or upgrade. Debian 11's default
+Python is too old for this package; use Debian 12 or newer, Ubuntu 22.04 or
+newer, or provide a supported `python3` 3.10+ interpreter before running the
+installer.
 
 ## Configure the Scanner
 
@@ -237,11 +244,16 @@ Restart the monitor after changing alerting settings:
 sudo systemctl restart linux-usb-scanner-client-monitor
 ```
 
-`backend = auto` tries ALSA audio through `aplay`, then the Linux `beep`
-command, then a console bell. Different Ubuntu installs expose different sound
-paths: the `beep` backend may require the `beep` package and system speaker
-support, while the `aplay` backend may require ALSA output to be configured.
-Use `enabled = false` to keep the monitor service running without making sound.
+`backend = auto` tries the Linux `beep` command first for system-speaker
+alerts, then ALSA audio through `aplay`, then a console bell as a final
+fallback. Different Debian and Ubuntu installs expose different sound paths:
+the `beep` backend may require the `beep` package and system speaker support,
+while the `aplay` backend may require ALSA output to be configured. Use
+`enabled = false` to keep the monitor service running without making sound.
+
+Both the scanner app service and the alert monitor service use systemd
+`Restart=always`. The alert monitor also disables systemd start-rate limiting so
+it keeps coming back after repeated process failures.
 
 Test one pattern:
 

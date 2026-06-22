@@ -25,12 +25,14 @@ REQUIRED_APT_PACKAGES=(
 OPTIONAL_APT_PACKAGES=(
   beep
 )
+MINIMUM_PYTHON_MAJOR=3
+MINIMUM_PYTHON_MINOR=10
 
 usage() {
   cat <<'USAGE'
 Usage: sudo scripts/install.sh [--overwrite-config]
 
-Installs linux-usb-scanner-client as a systemd service.
+Installs linux-usb-scanner-client as a systemd service on Debian or Ubuntu.
 
 Options:
   --overwrite-config   Replace /etc/linux-usb-scanner-client.conf with the template.
@@ -70,9 +72,9 @@ package_installed() {
   dpkg-query -W -f='${Status}' "${package}" 2>/dev/null | grep -q "install ok installed"
 }
 
-install_ubuntu_packages() {
+install_debian_ubuntu_packages() {
   if ! command -v apt-get >/dev/null 2>&1; then
-    echo "apt-get is required. This installer is intended for Ubuntu systems." >&2
+    echo "apt-get is required. This installer supports Debian and Ubuntu systems." >&2
     exit 1
   fi
 
@@ -93,7 +95,7 @@ install_ubuntu_packages() {
   done
 
   if [[ "${#missing_required[@]}" -eq 0 && "${#missing_optional[@]}" -eq 0 ]]; then
-    echo "Required Ubuntu packages are already installed."
+    echo "Required Debian/Ubuntu packages are already installed."
     return
   fi
 
@@ -102,12 +104,12 @@ install_ubuntu_packages() {
   apt-get update
 
   if [[ "${#missing_required[@]}" -gt 0 ]]; then
-    echo "Installing required Ubuntu packages: ${missing_required[*]}"
+    echo "Installing required Debian/Ubuntu packages: ${missing_required[*]}"
     apt-get install -y --no-install-recommends "${missing_required[@]}"
   fi
 
   if [[ "${#missing_optional[@]}" -gt 0 ]]; then
-    echo "Installing optional Ubuntu packages: ${missing_optional[*]}"
+    echo "Installing optional Debian/Ubuntu packages: ${missing_optional[*]}"
     if ! apt-get install -y --no-install-recommends "${missing_optional[@]}"; then
       echo "Warning: optional package install failed: ${missing_optional[*]}" >&2
       echo "The app can still run, but the matching optional alert backend may be unavailable." >&2
@@ -115,7 +117,38 @@ install_ubuntu_packages() {
   fi
 }
 
-install_ubuntu_packages
+verify_python_version() {
+  local current_version
+  current_version="$(
+    python3 - "${MINIMUM_PYTHON_MAJOR}" "${MINIMUM_PYTHON_MINOR}" <<'PY'
+import sys
+
+minimum = (int(sys.argv[1]), int(sys.argv[2]))
+
+print(f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+raise SystemExit(0 if sys.version_info >= minimum else 1)
+PY
+  )" || {
+    echo "python3 ${MINIMUM_PYTHON_MAJOR}.${MINIMUM_PYTHON_MINOR} or newer is required." >&2
+    echo "Detected python3 ${current_version:-unknown}." >&2
+    echo "Use Debian 12 or newer, Ubuntu 22.04 or newer, or install a supported python3 before running this installer." >&2
+    exit 1
+  }
+}
+
+if ! command -v systemctl >/dev/null 2>&1; then
+  echo "systemctl is required. This installer manages systemd services." >&2
+  exit 1
+fi
+
+if ! getent group input >/dev/null; then
+  echo "The input group is required so the service can read /dev/input/event* devices." >&2
+  echo "Create or enable the distribution's input device group before running this installer." >&2
+  exit 1
+fi
+
+install_debian_ubuntu_packages
+verify_python_version
 
 if ! getent group "${SERVICE_GROUP}" >/dev/null; then
   groupadd --system "${SERVICE_GROUP}"

@@ -21,6 +21,7 @@ from .storage import ScanStore
 from .timeutil import utc_timestamp
 
 LOGGER = logging.getLogger(__name__)
+AUTO_BEEP_BACKENDS = ("beep", "aplay", "console_bell")
 
 
 class AlertMonitorError(RuntimeError):
@@ -119,7 +120,7 @@ class BeepPlayer:
         backend = self.config.backend
         if backend == "auto":
             errors = []
-            for candidate in ("aplay", "beep", "console_bell"):
+            for candidate in AUTO_BEEP_BACKENDS:
                 try:
                     self._play_backend(candidate)
                     return

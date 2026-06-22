@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-`linux-usb-scanner-client` is a headless Ubuntu service for USB keyboard-wedge barcode scanners. It reads scan keystrokes from a configured `/dev/input/event*` device, buffers completed CR/LF-terminated scans in SQLite, and forwards them to `industrial-scanner-logger` over the same TCP framing used by the Windows USB scanner client: one UTF-8 barcode followed by `CRLF`.
+`linux-usb-scanner-client` is a headless Debian/Ubuntu service for USB keyboard-wedge barcode scanners. It reads scan keystrokes from a configured `/dev/input/event*` device, buffers completed CR/LF-terminated scans in SQLite, and forwards them to `industrial-scanner-logger` over the same TCP framing used by the Windows USB scanner client: one UTF-8 barcode followed by `CRLF`.
 
 The service intentionally opens and holds the TCP connection only while the configured USB scanner is available. If the scanner is unplugged, inaccessible, or not matched by config, the service must not connect to `industrial-scanner-logger`; this lets the server detect scanner availability through its connected TCP clients.
 
@@ -61,7 +61,7 @@ The app started at version `0.1.0`; the current prerelease version is `0.1.3`. D
 
 - Update `config/linux-usb-scanner-client.conf` when adding or changing settings.
 - Update `systemd/linux-usb-scanner-client.service`, `systemd/linux-usb-scanner-client-monitor.service`, and `scripts/install.sh` together when service paths, users, permissions, alerting, or startup behavior change.
-- Keep the Ubuntu package dependency lists in `scripts/install.sh` aligned with runtime, build, auto-update, and alerting needs, and document any dependency changes in `README.md`.
+- Keep the Debian/Ubuntu package dependency lists in `scripts/install.sh` aligned with runtime, build, auto-update, and alerting needs, and document any dependency changes in `README.md`.
 - Keep `scripts/install.sh` and `scripts/uninstall.sh` non-destructive to `/opt/linux-usb-scanner-client`.
 - Run `bash -n scripts/install.sh scripts/uninstall.sh` after shell script changes.
 - Run `PYTHONPATH=src python -m unittest discover -s tests` after Python changes.
@@ -72,6 +72,8 @@ The app started at version `0.1.0`; the current prerelease version is `0.1.3`. D
 - Human-readable `linux-usb-scanner-client health` output is ANSI-colored by default; use `--no-color` for plain text and `--json` for structured output.
 - `linux-usb-scanner-client list-devices` must help identify the correct scanner matcher for `/etc/linux-usb-scanner-client.conf`.
 - `linux-usb-scanner-client monitor` is a separate auto-starting service that plays the highest-priority active alert pattern: 5 quick beeps when the app service heartbeat is stale, 3 quick beeps when the USB scanner is unavailable, and 1 quick beep when the server is unreachable.
+- Alerting must prefer the system speaker first, then the audio card, with console bell only as a final fallback for `backend = auto`.
+- Keep the main scanner service and alert monitor service configured to restart continuously; the monitor unit must not be blocked by systemd start-rate limiting.
 - Server connection attempts are blocked whenever the scanner is unavailable.
 - Backlog delivery is best effort: failed TCP connects or sends leave scans queued with attempt metadata and retry later.
 - All client-generated timestamps must be UTC ISO-8601 strings ending in `Z`. The TCP wire protocol sends barcode frames only; server-side scan timestamps are controlled by `industrial-scanner-logger`.

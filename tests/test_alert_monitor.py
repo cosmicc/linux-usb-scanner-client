@@ -6,7 +6,11 @@ import io
 import sys
 import unittest
 
-from linux_usb_scanner_client.alert_monitor import BeepPlayer, choose_alert
+from linux_usb_scanner_client.alert_monitor import (
+    AlertMonitorError,
+    BeepPlayer,
+    choose_alert,
+)
 from linux_usb_scanner_client.config import AlertingConfig
 from linux_usb_scanner_client.health import HealthReport
 
@@ -67,6 +71,49 @@ class AlertMonitorTests(unittest.TestCase):
             sys.stdout = original_stdout
 
         self.assertEqual(captured.getvalue(), "\a\a\a")
+
+    def test_auto_backend_prefers_system_speaker(self) -> None:
+        player = _RecordingBeepPlayer(AlertingConfig(backend="auto"))
+
+        player.play_one_beep()
+
+        self.assertEqual(player.backends, ["beep"])
+
+    def test_auto_backend_uses_audio_card_after_system_speaker_failure(self) -> None:
+        player = _RecordingBeepPlayer(
+            AlertingConfig(backend="auto"),
+            failing_backends={"beep"},
+        )
+
+        player.play_one_beep()
+
+        self.assertEqual(player.backends, ["beep", "aplay"])
+
+    def test_auto_backend_keeps_console_bell_as_final_fallback(self) -> None:
+        player = _RecordingBeepPlayer(
+            AlertingConfig(backend="auto"),
+            failing_backends={"beep", "aplay"},
+        )
+
+        player.play_one_beep()
+
+        self.assertEqual(player.backends, ["beep", "aplay", "console_bell"])
+
+
+class _RecordingBeepPlayer(BeepPlayer):
+    """Capture backend attempts without touching host audio devices."""
+
+    def __init__(
+        self, config: AlertingConfig, failing_backends: set[str] | None = None
+    ) -> None:
+        super().__init__(config)
+        self.backends: list[str] = []
+        self.failing_backends = failing_backends or set()
+
+    def _play_backend(self, backend: str) -> None:
+        self.backends.append(backend)
+        if backend in self.failing_backends:
+            raise AlertMonitorError(f"{backend} unavailable")
 
 
 def _report(

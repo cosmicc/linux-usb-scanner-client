@@ -2,6 +2,7 @@
 Description=Linux USB Scanner Client Degraded-State Beep Monitor
 Documentation=https://github.com/cosmicc/linux-usb-scanner-client
 After=multi-user.target
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple

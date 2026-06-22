@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+### Changed
+
+- Installer and documentation now support Debian Linux alongside Ubuntu.
+- Installer now fails early with clear messages when `systemctl`, the `input`
+  group, or Python 3.10+ are unavailable on the target Debian/Ubuntu host.
+- Automatic beep alerts now prefer the system speaker first, then the audio
+  card, with console bell kept as a final fallback.
+- Alert monitor systemd unit now disables start-rate limiting so repeated
+  process failures do not permanently stop alerting.
+
 ## [0.1.3] - 2026-06-20
 
 ### Changed
