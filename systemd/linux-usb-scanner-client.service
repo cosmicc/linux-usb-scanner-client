@@ -11,9 +11,12 @@ User=linux-usb-scanner-client
 Group=linux-usb-scanner-client
 SupplementaryGroups=input
 WorkingDirectory=/opt/linux-usb-scanner-client
+Environment=LINUX_USB_SCANNER_CLIENT_SYSTEMD=1
 ExecStart=/opt/linux-usb-scanner-client/venv/bin/linux-usb-scanner-client --config /etc/linux-usb-scanner-client.conf service
 Restart=always
 RestartSec=2
+StandardOutput=append:/var/log/linux-usb-scanner-client.log
+StandardError=append:/var/log/linux-usb-scanner-client.log
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true

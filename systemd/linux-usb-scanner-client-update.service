@@ -10,5 +10,7 @@ User=root
 Group=root
 WorkingDirectory=/opt/linux-usb-scanner-client
 Environment=PYTHONUNBUFFERED=1
+Environment=LINUX_USB_SCANNER_CLIENT_SYSTEMD=1
 ExecStart=/opt/linux-usb-scanner-client/venv/bin/linux-usb-scanner-client --config /etc/linux-usb-scanner-client.conf auto-update
-
+StandardOutput=append:/var/log/linux-usb-scanner-client.log
+StandardError=append:/var/log/linux-usb-scanner-client.log

@@ -49,6 +49,7 @@ without a GUI.
 - Beeps continuously during degraded states when alerting is enabled.
 - Uses the audio card first for beep alerts, falls back to the system speaker,
   and keeps console bell as a final fallback when `backend = auto`.
+- Writes installed service, monitor, and updater logs to `/var/log/linux-usb-scanner-client.log`.
 - Avoids logging raw barcode values.
 
 The server derives `scanner_id` from the last octet of the client computer's
@@ -210,6 +211,40 @@ Raw barcode payloads are intentionally not printed in health output.
 The queue database itself contains raw scans, so installed deployments keep it
 restricted to the service identity. Run health with `sudo` unless your operator
 account has been intentionally granted access.
+
+Quick installed-system diagnostic:
+
+```bash
+sudo /opt/linux-usb-scanner-client/scripts/check-health.sh
+```
+
+The script summarizes the CLI health report, USB keyboard-like scanner devices,
+server connection state, queue/storage state, alert monitor state, update state,
+systemd unit active/enabled state, and the `/var/log/linux-usb-scanner-client.log`
+file. From a source checkout, run `sudo scripts/check-health.sh`.
+
+## Logs
+
+Installed deployments write app, monitor, and updater logs to:
+
+```bash
+/var/log/linux-usb-scanner-client.log
+```
+
+The Python application logger writes to the path configured by
+`logging.log_file`, which defaults to that file. The installed systemd units also
+append stdout and stderr to the same file so tracebacks and command output are
+available outside the journal. Adjust `logging.log_level` to control Python app
+logging volume:
+
+```ini
+[logging]
+log_file = /var/log/linux-usb-scanner-client.log
+log_level = INFO
+```
+
+Valid levels are `DEBUG`, `INFO`, `WARNING`, `ERROR`, and `CRITICAL`. Raw
+barcode payloads are not written to the log.
 
 ## Buffering and Retry
 

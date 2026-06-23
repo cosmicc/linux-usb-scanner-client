@@ -72,11 +72,13 @@ The app started at version `0.1.0`; the current prerelease version is `0.1.3`. D
 ## Operational Expectations
 
 - `linux-usb-scanner-client health` must show scanner state, server connection state, queue depth, oldest pending scan, heartbeat freshness, storage free space, auto-update state, alert monitor state, and recent errors.
+- `scripts/check-health.sh` is the quick installed-system diagnostic wrapper for CLI health, USB input-device visibility, systemd unit state, queue/storage state, server state, alert state, update state, and log-file presence.
 - Human-readable `linux-usb-scanner-client health` output is ANSI-colored by default; use `--no-color` for plain text and `--json` for structured output.
 - `linux-usb-scanner-client list-devices` must help identify the correct scanner matcher for `/etc/linux-usb-scanner-client.conf`.
 - `linux-usb-scanner-client monitor` is a separate auto-starting service that plays the highest-priority active alert pattern: 5 quick beeps when the app service heartbeat is stale, 3 quick beeps when the USB scanner is unavailable, and 1 quick beep when the server is unreachable.
 - Alerting must prefer the audio card first, then the system speaker, with console bell only as a final fallback for `backend = auto`.
 - Keep the main scanner service and alert monitor service configured to restart continuously; the monitor unit must not be blocked by systemd start-rate limiting.
+- Installed app, monitor, and updater logs must land in `/var/log/linux-usb-scanner-client.log`; Python logging volume must respect `logging.log_level`.
 - Server connection attempts are blocked whenever the scanner is unavailable.
 - Backlog delivery is best effort: failed TCP connects or sends leave scans queued with attempt metadata and retry later.
 - All client-generated timestamps must be UTC ISO-8601 strings ending in `Z`. The TCP wire protocol sends barcode frames only; server-side scan timestamps are controlled by `industrial-scanner-logger`.

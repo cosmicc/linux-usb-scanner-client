@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
+import os
 import sys
 
 from . import __version__
@@ -15,6 +17,9 @@ from .health import build_health_report, format_health_text
 from .logging_setup import configure_logging
 from .service import ScannerClientService
 from .storage import ScanStore
+
+LOGGER = logging.getLogger(__name__)
+SYSTEMD_ENV_FLAG = "LINUX_USB_SCANNER_CLIENT_SYSTEMD"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -53,13 +58,20 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "auto-update":
+        log_to_stderr = _should_log_to_stderr()
+        configure_logging(config.logging, to_stderr=log_to_stderr)
         updater = AutoUpdater(config)
         try:
             result = updater.run(check_only=args.check_only, force=args.force)
         except AutoUpdateError as exc:
-            print(f"Auto-update error: {exc}", file=sys.stderr)
+            LOGGER.error("Auto-update error: %s", exc)
+            if log_to_stderr:
+                print(f"Auto-update error: {exc}", file=sys.stderr)
             return 1
-        print(format_update_result(result))
+        formatted_result = format_update_result(result)
+        LOGGER.info("Auto-update result: %s", formatted_result.replace("\n", "; "))
+        if log_to_stderr:
+            print(formatted_result)
         return 0
 
     if args.command == "health":
@@ -71,12 +83,13 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if report.overall_status == "ok" else 1
 
     if args.command == "service":
-        configure_logging(config.logging)
+        configure_logging(config.logging, to_stderr=_should_log_to_stderr())
         service = ScannerClientService(config)
         return service.run()
 
     if args.command == "monitor":
-        configure_logging(config.logging)
+        log_to_stderr = _should_log_to_stderr()
+        configure_logging(config.logging, to_stderr=log_to_stderr)
         monitor = AlertMonitor(config)
         try:
             if args.test_beep:
@@ -84,11 +97,19 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             return monitor.run(once=args.once)
         except AlertMonitorError as exc:
-            print(f"Alert monitor error: {exc}", file=sys.stderr)
+            LOGGER.error("Alert monitor error: %s", exc)
+            if log_to_stderr:
+                print(f"Alert monitor error: {exc}", file=sys.stderr)
             return 1
 
     parser.print_help()
     return 1
+
+
+def _should_log_to_stderr() -> bool:
+    """Return whether Python log records should also go to stderr."""
+
+    return os.environ.get(SYSTEMD_ENV_FLAG) != "1"
 
 
 def _build_parser() -> argparse.ArgumentParser:

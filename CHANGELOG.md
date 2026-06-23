@@ -19,6 +19,12 @@ All notable changes to this project are documented here.
   timer are enabled and active before reporting success.
 - Installer now installs `acl` and grants/verifies service-user read access to
   both the source app directory and `/opt/linux-usb-scanner-client`.
+- Installed app, monitor, and updater units now append stdout/stderr to
+  `/var/log/linux-usb-scanner-client.log`, while Python app logging writes to
+  the configured `logging.log_file` and obeys `logging.log_level`.
+- Added `scripts/check-health.sh` for a quick installed-system diagnostic across
+  CLI health, USB input devices, server connectivity, queue/storage state,
+  alert/update state, systemd units, and log-file presence.
 
 ## [0.1.3] - 2026-06-20
 

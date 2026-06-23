@@ -16,9 +16,11 @@ def configure_logging(config: LoggingConfig, *, to_stderr: bool = True) -> None:
     handlers: list[logging.Handler] = []
     if config.log_file:
         Path(config.log_file).parent.mkdir(parents=True, exist_ok=True)
-        handlers.append(logging.FileHandler(config.log_file))
+        handlers.append(logging.FileHandler(config.log_file, encoding="utf-8"))
     if to_stderr:
         handlers.append(logging.StreamHandler(sys.stderr))
+    for handler in handlers:
+        handler.setLevel(level)
 
     logging.basicConfig(
         level=level,
@@ -26,4 +28,3 @@ def configure_logging(config: LoggingConfig, *, to_stderr: bool = True) -> None:
         handlers=handlers,
         force=True,
     )
-
