@@ -13,6 +13,7 @@ MONITOR_UNIT_PATH="/etc/systemd/system/linux-usb-scanner-client-monitor.service"
 UPDATE_UNIT_PATH="/etc/systemd/system/linux-usb-scanner-client-update.service"
 UPDATE_TIMER_PATH="/etc/systemd/system/linux-usb-scanner-client-update.timer"
 REQUIRED_APT_PACKAGES=(
+  acl
   ca-certificates
   git
   python3
@@ -70,6 +71,128 @@ REPO_DIR="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 package_installed() {
   local package="$1"
   dpkg-query -W -f='${Status}' "${package}" 2>/dev/null | grep -q "install ok installed"
+}
+
+copy_application_files() {
+  local source_dir="$1"
+  local destination_dir="$2"
+  local source_real
+  local destination_real
+  local staging_dir
+  local status
+  local exclude_args=(
+    --exclude './.git'
+    --exclude './.venv'
+    --exclude './__pycache__'
+    --exclude '*/__pycache__'
+    --exclude '*.pyc'
+  )
+
+  source_real="$(readlink -f "${source_dir}")"
+  destination_real="$(readlink -f "${destination_dir}")"
+
+  if [[ "${source_real}" == "${destination_real}" ]]; then
+    echo "Source is already ${destination_dir}; skipping application file copy."
+    return
+  fi
+
+  if [[ "${destination_real}" == "${source_real}/"* ]]; then
+    local destination_relative="${destination_real#"${source_real}/"}"
+    exclude_args+=(--exclude "./${destination_relative}")
+    exclude_args+=(--exclude "./${destination_relative}/*")
+  fi
+
+  staging_dir="$(mktemp -d)"
+  if tar -C "${source_dir}" "${exclude_args[@]}" -cf - . | tar -C "${staging_dir}" -xf -; then
+    if tar -C "${staging_dir}" -cf - . | tar -C "${destination_dir}" -xf -; then
+      status=0
+    else
+      status=$?
+    fi
+  else
+    status=$?
+  fi
+  rm -rf "${staging_dir}"
+  return "${status}"
+}
+
+verify_enabled_unit() {
+  local unit="$1"
+  if ! systemctl is-enabled --quiet "${unit}"; then
+    echo "Install failed: ${unit} is not enabled." >&2
+    systemctl --no-pager --full status "${unit}" >&2 || true
+    exit 1
+  fi
+}
+
+verify_active_unit() {
+  local unit="$1"
+  if ! systemctl is-active --quiet "${unit}"; then
+    echo "Install failed: ${unit} is not active after restart." >&2
+    systemctl --no-pager --full status "${unit}" >&2 || true
+    exit 1
+  fi
+}
+
+grant_service_user_app_access() {
+  local app_dir="$1"
+  local app_real
+
+  app_real="$(readlink -f "${app_dir}")"
+  if [[ ! -d "${app_real}" ]]; then
+    echo "Install failed: app directory does not exist: ${app_real}" >&2
+    exit 1
+  fi
+
+  if command -v setfacl >/dev/null 2>&1; then
+    if grant_service_user_app_access_with_acl "${app_real}"; then
+      return
+    fi
+    echo "Warning: ACL grant failed; using service-group permissions for ${app_real}." >&2
+  else
+    echo "Warning: setfacl is unavailable; using service-group permissions for ${app_real}." >&2
+  fi
+
+  chgrp -R "${SERVICE_GROUP}" "${app_real}"
+  chmod -R g+rX "${app_real}"
+}
+
+grant_service_user_app_access_with_acl() {
+  local app_real="$1"
+  local parent_dir="${app_real}"
+
+  while [[ "${parent_dir}" != "/" ]]; do
+    setfacl -m "u:${SERVICE_USER}:--x" "${parent_dir}" || return 1
+    parent_dir="$(dirname "${parent_dir}")"
+  done
+  setfacl -R -m "u:${SERVICE_USER}:rX" "${app_real}" || return 1
+}
+
+verify_service_user_app_access() {
+  local app_dir="$1"
+  local app_real
+  local required_path
+  local required_paths=(
+    pyproject.toml
+    requirements.txt
+    src/linux_usb_scanner_client/__init__.py
+    scripts/install.sh
+    systemd/linux-usb-scanner-client.service
+  )
+
+  app_real="$(readlink -f "${app_dir}")"
+  if ! runuser -u "${SERVICE_USER}" -- test -r "${app_real}" ||
+    ! runuser -u "${SERVICE_USER}" -- test -x "${app_real}"; then
+    echo "Install failed: ${SERVICE_USER} cannot read and enter ${app_real}." >&2
+    exit 1
+  fi
+
+  for required_path in "${required_paths[@]}"; do
+    if ! runuser -u "${SERVICE_USER}" -- test -r "${app_real}/${required_path}"; then
+      echo "Install failed: ${SERVICE_USER} cannot read ${app_real}/${required_path}." >&2
+      exit 1
+    fi
+  done
 }
 
 install_debian_ubuntu_packages() {
@@ -172,18 +295,17 @@ touch "${LOG_PATH}"
 chown "${SERVICE_USER}:${SERVICE_GROUP}" "${LOG_PATH}"
 chmod 0640 "${LOG_PATH}"
 
-tar -C "${REPO_DIR}" \
-  --exclude './.git' \
-  --exclude './.venv' \
-  --exclude './__pycache__' \
-  --exclude '*/__pycache__' \
-  --exclude '*.pyc' \
-  -cf - . | tar -C "${INSTALL_DIR}" -xf -
+copy_application_files "${REPO_DIR}" "${INSTALL_DIR}"
 
 python3 -m venv "${INSTALL_DIR}/venv"
 "${INSTALL_DIR}/venv/bin/python" -m pip install --upgrade pip
 "${INSTALL_DIR}/venv/bin/python" -m pip install -r "${INSTALL_DIR}/requirements.txt"
 "${INSTALL_DIR}/venv/bin/python" -m pip install -e "${INSTALL_DIR}"
+
+grant_service_user_app_access "${REPO_DIR}"
+verify_service_user_app_access "${REPO_DIR}"
+grant_service_user_app_access "${INSTALL_DIR}"
+verify_service_user_app_access "${INSTALL_DIR}"
 
 if [[ "${OVERWRITE_CONFIG}" == true || ! -f "${CONFIG_PATH}" ]]; then
   install -o root -g "${SERVICE_GROUP}" -m 0640 \
@@ -207,6 +329,11 @@ install -o root -g root -m 0644 \
   "${UPDATE_TIMER_PATH}"
 
 systemctl daemon-reload
+systemctl reset-failed \
+  "${APP_NAME}.service" \
+  "${APP_NAME}-monitor.service" \
+  "${APP_NAME}-update.service" \
+  "${APP_NAME}-update.timer" 2>/dev/null || true
 systemctl enable "${APP_NAME}.service"
 systemctl enable "${APP_NAME}-monitor.service"
 systemctl enable "${APP_NAME}-update.timer"
@@ -214,7 +341,15 @@ systemctl restart "${APP_NAME}-update.timer"
 systemctl restart "${APP_NAME}.service"
 systemctl restart "${APP_NAME}-monitor.service"
 
+verify_enabled_unit "${APP_NAME}.service"
+verify_enabled_unit "${APP_NAME}-monitor.service"
+verify_enabled_unit "${APP_NAME}-update.timer"
+verify_active_unit "${APP_NAME}.service"
+verify_active_unit "${APP_NAME}-monitor.service"
+verify_active_unit "${APP_NAME}-update.timer"
+
 echo "Installed ${APP_NAME}."
+echo "Verified app service, alert monitor service, and update timer are enabled and active."
 echo "Edit ${CONFIG_PATH}, then run: sudo systemctl restart ${APP_NAME}"
 echo "Check health with: sudo ${INSTALL_DIR}/venv/bin/linux-usb-scanner-client health"
 echo "Auto-update timer is installed; set [updates] enabled = true in ${CONFIG_PATH} to allow updates."

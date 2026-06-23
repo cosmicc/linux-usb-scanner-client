@@ -13,6 +13,12 @@ All notable changes to this project are documented here.
   card, with console bell kept as a final fallback.
 - Alert monitor systemd unit now disables start-rate limiting so repeated
   process failures do not permanently stop alerting.
+- Installer now safely handles being rerun from `/opt/linux-usb-scanner-client`
+  without copying the install tree onto itself.
+- Installer now verifies that the app service, alert monitor service, and update
+  timer are enabled and active before reporting success.
+- Installer now installs `acl` and grants/verifies service-user read access to
+  both the source app directory and `/opt/linux-usb-scanner-client`.
 
 ## [0.1.3] - 2026-06-20
 

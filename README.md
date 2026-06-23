@@ -71,9 +71,9 @@ The installer:
 
 - verifies `systemctl`, the `input` group, and `python3` 3.10 or newer before
   installing the service;
-- installs required Debian/Ubuntu packages when missing: `ca-certificates`, `git`,
-  `python3`, `python3-dev`, `python3-pip`, `python3-venv`,
-  `build-essential`, and `alsa-utils`;
+- installs required Debian/Ubuntu packages when missing: `acl`,
+  `ca-certificates`, `git`, `python3`, `python3-dev`, `python3-pip`,
+  `python3-venv`, `build-essential`, and `alsa-utils`;
 - attempts to install the optional `beep` package for system-speaker alerting,
   and continues with a warning if that package is unavailable;
 - creates a `linux-usb-scanner-client` system user and group;
@@ -83,7 +83,19 @@ The installer:
 - installs `/etc/linux-usb-scanner-client.conf` if it does not already exist;
 - installs and starts `linux-usb-scanner-client.service`;
 - installs and starts `linux-usb-scanner-client-monitor.service`;
-- installs and starts `linux-usb-scanner-client-update.timer`.
+- installs and starts `linux-usb-scanner-client-update.timer`;
+- verifies that the app service, alert monitor service, and update timer are
+  enabled and active before reporting success.
+
+The installer is safe to rerun from a source checkout or from the installed
+`/opt/linux-usb-scanner-client` directory. When the source directory is already
+the install directory, it skips the application file copy instead of copying the
+tree onto itself.
+
+The installer grants the `linux-usb-scanner-client` service user read/traverse
+access to the app directory where `scripts/install.sh` is running from and to
+`/opt/linux-usb-scanner-client`. It uses ACLs when available so private parent
+directories can stay private instead of making the app tree world-readable.
 
 The existing config is preserved unless you run:
 
