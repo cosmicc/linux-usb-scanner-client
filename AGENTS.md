@@ -55,7 +55,9 @@ Before editing scanner behavior, inspect the current `industrial-scanner-logger`
 
 ## Versioning
 
-The app started at version `0.1.0`; the current prerelease version is `0.1.3`. Do not advance the version unless the user explicitly asks for a version bump. When a version bump is requested, keep `pyproject.toml`, `src/linux_usb_scanner_client/__init__.py`, `README.md`, and `CHANGELOG.md` aligned, and update the version consistency test.
+The app started at version `0.1.0`; the current prerelease version is `0.1.4`. The auto-updater detects available updates by reading `[project].version` from `pyproject.toml` on the configured Git branch and comparing it to the installed package `__version__`.
+
+For every app behavior, installer, config template, systemd unit, operational script, dependency, or user-facing workflow change that should reach installed systems through auto-update, advance the app version so `pyproject.toml` changes to a higher version. Keep `pyproject.toml`, `src/linux_usb_scanner_client/__init__.py`, `README.md`, and `CHANGELOG.md` aligned, and update the version consistency test. Agent-only documentation changes that should not trigger installed-system updates may leave the version unchanged.
 
 ## Deployment Workflow
 

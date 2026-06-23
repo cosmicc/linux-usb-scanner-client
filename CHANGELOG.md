@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here.
 
-## [Unreleased]
+## [0.1.4] - 2026-06-23
 
 ### Changed
 
@@ -25,6 +25,10 @@ All notable changes to this project are documented here.
 - Added `scripts/check-health.sh` for a quick installed-system diagnostic across
   CLI health, USB input devices, server connectivity, queue/storage state,
   alert/update state, systemd units, and log-file presence.
+- Documented that auto-update can only detect app changes when
+  `pyproject.toml` is advanced to a higher version and version metadata stays
+  aligned.
+- Bumped prerelease version to `0.1.4`.
 
 ## [0.1.3] - 2026-06-20
 

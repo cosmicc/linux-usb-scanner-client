@@ -33,7 +33,7 @@ without a GUI.
 
 ## Current Behavior
 
-- Current version: `0.1.3`.
+- Current version: `0.1.4`.
 - Runs as `linux-usb-scanner-client.service` on Debian and Ubuntu.
 - Runs a separate `linux-usb-scanner-client-monitor.service` for degraded-state beep alerts.
 - Stores runtime settings in `/etc/linux-usb-scanner-client.conf`.
