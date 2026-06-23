@@ -29,11 +29,19 @@ OPTIONAL_APT_PACKAGES=(
 MINIMUM_PYTHON_MAJOR=3
 MINIMUM_PYTHON_MINOR=10
 
+if [[ "${EUID}" -ne 0 ]]; then
+  echo "${0##*/} must be run as root. Re-run with sudo." >&2
+  exit 1
+fi
+
 usage() {
   cat <<'USAGE'
 Usage: sudo scripts/install.sh [--overwrite-config]
 
 Installs linux-usb-scanner-client as a systemd service on Debian or Ubuntu.
+When the app is already installed, this updates application files, units,
+dependencies, and the virtual environment, then restarts the installed services.
+It preserves the app directory, config file, SQLite queue data, and log file.
 
 Options:
   --overwrite-config   Replace /etc/linux-usb-scanner-client.conf with the template.
@@ -60,13 +68,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ "${EUID}" -ne 0 ]]; then
-  echo "This installer must be run as root." >&2
-  exit 1
-fi
-
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+ALREADY_INSTALLED=false
+if [[ -d "${INSTALL_DIR}" || -f "${UNIT_PATH}" || -f "${MONITOR_UNIT_PATH}" ]]; then
+  ALREADY_INSTALLED=true
+fi
 
 package_installed() {
   local package="$1"
@@ -176,7 +183,10 @@ verify_service_user_app_access() {
     pyproject.toml
     requirements.txt
     src/linux_usb_scanner_client/__init__.py
+    scripts/check-health.sh
+    scripts/clear-scan-queue.sh
     scripts/install.sh
+    scripts/restart-services.sh
     systemd/linux-usb-scanner-client.service
   )
 
@@ -273,6 +283,13 @@ fi
 install_debian_ubuntu_packages
 verify_python_version
 
+if [[ "${ALREADY_INSTALLED}" == true ]]; then
+  echo "Updating existing ${APP_NAME} installation."
+  echo "Preserving ${CONFIG_PATH}, ${STATE_DIR}, ${LOG_PATH}, and ${INSTALL_DIR}."
+else
+  echo "Installing ${APP_NAME}."
+fi
+
 if ! getent group "${SERVICE_GROUP}" >/dev/null; then
   groupadd --system "${SERVICE_GROUP}"
 fi
@@ -348,11 +365,16 @@ verify_active_unit "${APP_NAME}.service"
 verify_active_unit "${APP_NAME}-monitor.service"
 verify_active_unit "${APP_NAME}-update.timer"
 
-echo "Installed ${APP_NAME}."
+if [[ "${ALREADY_INSTALLED}" == true ]]; then
+  echo "Updated ${APP_NAME}."
+else
+  echo "Installed ${APP_NAME}."
+fi
 echo "Verified app service, alert monitor service, and update timer are enabled and active."
 echo "Edit ${CONFIG_PATH}, then run: sudo systemctl restart ${APP_NAME}"
 echo "Check health with: sudo ${INSTALL_DIR}/venv/bin/linux-usb-scanner-client health"
 echo "Run full diagnostics with: sudo ${INSTALL_DIR}/scripts/check-health.sh"
 echo "Restart all installed app units with: sudo ${INSTALL_DIR}/scripts/restart-services.sh"
+echo "Clear pending scans only with: sudo ${INSTALL_DIR}/scripts/clear-scan-queue.sh"
 echo "Auto-update timer is installed; set [updates] enabled = true in ${CONFIG_PATH} to allow updates."
 echo "Alert monitor is installed; configure [alerting] in ${CONFIG_PATH} for beep behavior."

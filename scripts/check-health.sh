@@ -12,9 +12,14 @@ UNIT_NAMES=(
   "linux-usb-scanner-client-update.service"
 )
 
+if [[ "${EUID}" -ne 0 ]]; then
+  echo "${0##*/} must be run as root. Re-run with sudo." >&2
+  exit 1
+fi
+
 usage() {
   cat <<'USAGE'
-Usage: scripts/check-health.sh [--config PATH]
+Usage: sudo scripts/check-health.sh [--config PATH]
 
 Summarizes linux-usb-scanner-client health, USB input-device visibility,
 server connection state, queue state, alert monitor state, and systemd units.
@@ -244,9 +249,6 @@ main() {
   echo "Time: $(date -Is)"
   echo "CLI: $(format_command)"
   echo "Config: ${CONFIG_PATH}"
-  if [[ "${EUID}" -ne 0 ]]; then
-    echo "Note: run with sudo on installed systems if health or device access is denied."
-  fi
 
   print_header "App Health"
   run_client health --json >"${HEALTH_JSON}" 2>"${HEALTH_JSON}.err" || health_status=$?

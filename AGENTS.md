@@ -36,7 +36,7 @@ Every meaningful change must keep these files current:
 - Keep `/etc/linux-usb-scanner-client.conf` root-owned and readable by the service group only when installed.
 - Keep the SQLite queue under `/var/lib/linux-usb-scanner-client/` with ownership limited to the service user.
 - Preserve the app directory on every uninstall, including purge.
-- Preserve pending queued scans forever until they are delivered. Cleanup may remove only already-sent metadata.
+- Preserve pending queued scans forever until they are delivered. Automated cleanup may remove only already-sent metadata. The only normal operator exceptions are `scripts/clear-scan-queue.sh` and `scripts/uninstall.sh --purge`.
 - Keep auto-update disabled by default. Enabling it allows a root systemd service to run `scripts/install.sh` from the configured Git repository branch, so it must remain restricted to trusted repositories.
 
 ## Development Workflow
@@ -55,7 +55,7 @@ Before editing scanner behavior, inspect the current `industrial-scanner-logger`
 
 ## Versioning
 
-The app started at version `0.1.0`; the current prerelease version is `0.1.5`. The auto-updater detects available updates by reading `[project].version` from `pyproject.toml` on the configured Git branch and comparing it to the installed package `__version__`.
+The app started at version `0.1.0`; the current prerelease version is `0.1.8`. The auto-updater detects available updates by reading `[project].version` from `pyproject.toml` on the configured Git branch and comparing it to the installed package `__version__`.
 
 For every app behavior, installer, config template, systemd unit, operational script, dependency, or user-facing workflow change that should reach installed systems through auto-update, advance the app version so `pyproject.toml` changes to a higher version. Keep `pyproject.toml`, `src/linux_usb_scanner_client/__init__.py`, `README.md`, and `CHANGELOG.md` aligned, and update the version consistency test. Agent-only documentation changes that should not trigger installed-system updates may leave the version unchanged.
 
@@ -64,11 +64,13 @@ For every app behavior, installer, config template, systemd unit, operational sc
 - Update `config/linux-usb-scanner-client.conf` when adding or changing settings.
 - Update `systemd/linux-usb-scanner-client.service`, `systemd/linux-usb-scanner-client-monitor.service`, and `scripts/install.sh` together when service paths, users, permissions, alerting, or startup behavior change.
 - Keep the Debian/Ubuntu package dependency lists in `scripts/install.sh` aligned with runtime, build, auto-update, and alerting needs, and document any dependency changes in `README.md`.
-- Keep `scripts/install.sh` and `scripts/uninstall.sh` non-destructive to `/opt/linux-usb-scanner-client`.
+- Keep `scripts/install.sh` non-destructive to `/opt/linux-usb-scanner-client`, `/etc/linux-usb-scanner-client.conf`, `/var/lib/linux-usb-scanner-client`, and `/var/log/linux-usb-scanner-client.log`; rerunning it on an installed system is an update path.
+- Keep `scripts/uninstall.sh` non-destructive to `/opt/linux-usb-scanner-client`, `/etc/linux-usb-scanner-client.conf`, and `/var/log/linux-usb-scanner-client.log`; `--purge` may remove `/var/lib/linux-usb-scanner-client` SQLite state only.
 - Keep `scripts/install.sh` safe to rerun from `/opt/linux-usb-scanner-client`; it must not copy the install tree onto itself.
+- Every shell script under `scripts/` must require root before option parsing and fail immediately with a clear sudo reminder when run as a normal user.
 - Keep the installer responsible for granting and verifying service-user read access to both the source app directory and `/opt/linux-usb-scanner-client`.
 - The installer must verify that the app service, alert monitor service, and update timer are enabled and active before reporting success.
-- Run `bash -n scripts/install.sh scripts/uninstall.sh scripts/check-health.sh scripts/restart-services.sh` after shell script changes.
+- Run `bash -n scripts/install.sh scripts/uninstall.sh scripts/check-health.sh scripts/restart-services.sh scripts/clear-scan-queue.sh` after shell script changes.
 - Run `PYTHONPATH=src python -m unittest discover -s tests` after Python changes.
 
 ## Operational Expectations
@@ -76,12 +78,15 @@ For every app behavior, installer, config template, systemd unit, operational sc
 - `linux-usb-scanner-client health` must show scanner state, server connection state, queue depth, oldest pending scan, heartbeat freshness, storage free space, auto-update state, alert monitor state, and recent errors.
 - `scripts/check-health.sh` is the quick installed-system diagnostic wrapper for CLI health, USB input-device visibility, systemd unit state, queue/storage state, server state, alert state, update state, and log-file presence.
 - `scripts/restart-services.sh` is the installed-system restart helper for applying config, unit, script, or app-file changes without rebooting. It must reload systemd, reset failed state, restart the app service, restart the alert monitor service, and restart the auto-update timer. It must not run the root-owned one-shot updater unless the operator passes `--run-update-check`.
+- `scripts/clear-scan-queue.sh` is the only normal operator path for deleting queued scan payloads. It must require explicit confirmation unless `--yes` is passed, must stop/restart running services around the delete, and must preserve sent metadata unless `--include-sent` is passed.
 - Human-readable `linux-usb-scanner-client health` output is ANSI-colored by default; use `--no-color` for plain text and `--json` for structured output.
 - `linux-usb-scanner-client list-devices` must help identify the correct scanner matcher for `/etc/linux-usb-scanner-client.conf`.
 - `linux-usb-scanner-client monitor` is a separate auto-starting service that plays the highest-priority active alert pattern: 5 quick beeps when the app service heartbeat is stale, 3 quick beeps when the USB scanner is unavailable, and 1 quick beep when the server is unreachable.
 - Alerting must prefer the audio card first, then the system speaker, with console bell only as a final fallback for `backend = auto`.
+- When `backend = beep` makes an audible system-speaker beep but exits nonzero with no stderr/stdout, treat it as a best-effort beep and log at most one warning instead of putting the monitor in an error loop.
 - Keep the main scanner service and alert monitor service configured to restart continuously; the monitor unit must not be blocked by systemd start-rate limiting.
 - Installed app, monitor, and updater logs must land in `/var/log/linux-usb-scanner-client.log`; Python logging volume must respect `logging.log_level`.
 - Server connection attempts are blocked whenever the scanner is unavailable.
 - Backlog delivery is best effort: failed TCP connects or sends leave scans queued with attempt metadata and retry later.
+- The scan queue database under `/var/lib/linux-usb-scanner-client/` must remain persistent across service restarts, app updates, host reboots, and installer reruns.
 - All client-generated timestamps must be UTC ISO-8601 strings ending in `Z`. The TCP wire protocol sends barcode frames only; server-side scan timestamps are controlled by `industrial-scanner-logger`.

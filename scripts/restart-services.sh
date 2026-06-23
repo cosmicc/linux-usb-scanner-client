@@ -12,6 +12,12 @@ UNITS=(
   "${UPDATE_SERVICE}"
   "${UPDATE_TIMER}"
 )
+
+if [[ "${EUID}" -ne 0 ]]; then
+  echo "${0##*/} must be run as root. Re-run with sudo." >&2
+  exit 1
+fi
+
 usage() {
   cat <<'USAGE'
 Usage: sudo scripts/restart-services.sh [--run-update-check]
@@ -44,11 +50,6 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
-
-if [[ "${EUID}" -ne 0 ]]; then
-  echo "This restart helper must be run as root." >&2
-  exit 1
-fi
 
 if ! command -v systemctl >/dev/null 2>&1; then
   echo "systemctl is required. This helper restarts systemd units." >&2

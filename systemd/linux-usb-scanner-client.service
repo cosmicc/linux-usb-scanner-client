@@ -22,6 +22,8 @@ PrivateTmp=true
 ProtectHome=true
 ProtectSystem=full
 ReadWritePaths=/var/lib/linux-usb-scanner-client /var/log/linux-usb-scanner-client.log
+StateDirectory=linux-usb-scanner-client
+StateDirectoryMode=0750
 
 [Install]
 WantedBy=multi-user.target

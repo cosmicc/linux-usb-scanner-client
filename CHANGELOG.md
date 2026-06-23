@@ -2,6 +2,54 @@
 
 All notable changes to this project are documented here.
 
+## [0.1.8] - 2026-06-23
+
+### Changed
+
+- All shell scripts under `scripts/` now require root before option parsing and
+  fail immediately with a sudo reminder when run as a normal user.
+- Documented the root-only script boundary in `README.md` and `AGENTS.md`.
+- Bumped prerelease version to `0.1.8`.
+
+## [0.1.7] - 2026-06-23
+
+### Added
+
+- Added `scripts/clear-scan-queue.sh` for explicitly clearing pending queued
+  scans from the persistent SQLite database without deleting config, logs, or
+  the app directory.
+- Added a regression test proving `ScanStore.initialize()` preserves existing
+  pending scans when the same queue database is reopened.
+
+### Changed
+
+- Installer documentation and output now state that rerunning `install.sh` on
+  an installed system is an update path that preserves app files, config,
+  SQLite state, and logs while restarting installed services.
+- Uninstaller `--purge` now removes only `/var/lib/linux-usb-scanner-client`
+  SQLite/local state; it preserves `/opt/linux-usb-scanner-client`,
+  `/etc/linux-usb-scanner-client.conf`, `/var/log/linux-usb-scanner-client.log`,
+  and the service identity.
+- The systemd app unit now declares persistent `StateDirectory` ownership for
+  `/var/lib/linux-usb-scanner-client`.
+- Bumped prerelease version to `0.1.7`.
+
+## [0.1.6] - 2026-06-23
+
+### Fixed
+
+- Alert monitor no longer logs an error loop when the `beep` backend makes an
+  audible system-speaker beep but exits nonzero without stderr/stdout.
+
+### Changed
+
+- Auto alert backend selection now remembers the first working backend during a
+  monitor run instead of retrying failed earlier backends for every beep in a
+  multi-beep pattern.
+- Clarified audio-card versus system-speaker alert backend behavior in the
+  config template, `README.md`, and `AGENTS.md`.
+- Bumped prerelease version to `0.1.6`.
+
 ## [0.1.5] - 2026-06-23
 
 ### Added

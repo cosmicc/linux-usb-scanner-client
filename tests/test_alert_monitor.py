@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import io
+import subprocess
 import sys
 import unittest
+from unittest.mock import patch
 
 from linux_usb_scanner_client.alert_monitor import (
     AlertMonitorError,
@@ -98,6 +100,67 @@ class AlertMonitorTests(unittest.TestCase):
         player.play_one_beep()
 
         self.assertEqual(player.backends, ["aplay", "beep", "console_bell"])
+
+    def test_auto_backend_reuses_working_backend_for_pattern(self) -> None:
+        player = _RecordingBeepPlayer(
+            AlertingConfig(backend="auto", beep_gap_ms=0),
+            failing_backends={"aplay"},
+        )
+
+        player.play_pattern(3)
+
+        self.assertEqual(player.backends, ["aplay", "beep", "beep", "beep"])
+
+    def test_beep_backend_tolerates_empty_error_nonzero_exit(self) -> None:
+        player = BeepPlayer(AlertingConfig(backend="beep", beep_command="/usr/bin/beep"))
+        completed = subprocess.CompletedProcess(
+            args=["/usr/bin/beep"],
+            returncode=1,
+            stdout="",
+            stderr="",
+        )
+
+        with (
+            self.assertLogs(
+                "linux_usb_scanner_client.alert_monitor",
+                level="WARNING",
+            ) as logs,
+            patch(
+                "linux_usb_scanner_client.alert_monitor.shutil.which",
+                return_value="/usr/bin/beep",
+            ),
+            patch(
+                "linux_usb_scanner_client.alert_monitor.subprocess.run",
+                return_value=completed,
+            ),
+        ):
+            player.play_one_beep()
+            player.play_one_beep()
+
+        self.assertEqual(len(logs.output), 1)
+        self.assertIn("best-effort system-speaker beep", logs.output[0])
+
+    def test_beep_backend_raises_when_command_reports_error(self) -> None:
+        player = BeepPlayer(AlertingConfig(backend="beep", beep_command="/usr/bin/beep"))
+        completed = subprocess.CompletedProcess(
+            args=["/usr/bin/beep"],
+            returncode=1,
+            stdout="",
+            stderr="speaker unavailable",
+        )
+
+        with (
+            patch(
+                "linux_usb_scanner_client.alert_monitor.shutil.which",
+                return_value="/usr/bin/beep",
+            ),
+            patch(
+                "linux_usb_scanner_client.alert_monitor.subprocess.run",
+                return_value=completed,
+            ),
+        ):
+            with self.assertRaisesRegex(AlertMonitorError, "speaker unavailable"):
+                player.play_one_beep()
 
 
 class _RecordingBeepPlayer(BeepPlayer):

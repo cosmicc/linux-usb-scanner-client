@@ -105,6 +105,8 @@ class BeepPlayer:
 
     def __init__(self, config: AlertingConfig) -> None:
         self.config = config
+        self._auto_backend: str | None = None
+        self._warned_empty_beep_failure = False
 
     def play_pattern(self, beep_count: int) -> None:
         """Play a configured number of quick beeps."""
@@ -119,15 +121,31 @@ class BeepPlayer:
 
         backend = self.config.backend
         if backend == "auto":
-            errors = []
-            for candidate in AUTO_BEEP_BACKENDS:
-                try:
-                    self._play_backend(candidate)
-                    return
-                except AlertMonitorError as exc:
-                    errors.append(str(exc))
-            raise AlertMonitorError("; ".join(errors))
+            self._play_auto_backend()
+            return
         self._play_backend(backend)
+
+    def _play_auto_backend(self) -> None:
+        """Play one beep using the first working backend and remember it."""
+
+        candidates = list(AUTO_BEEP_BACKENDS)
+        if self._auto_backend is not None:
+            candidates = [
+                self._auto_backend,
+                *(backend for backend in candidates if backend != self._auto_backend),
+            ]
+
+        errors = []
+        for candidate in candidates:
+            try:
+                self._play_backend(candidate)
+                self._auto_backend = candidate
+                return
+            except AlertMonitorError as exc:
+                if candidate == self._auto_backend:
+                    self._auto_backend = None
+                errors.append(f"{candidate}: {exc}")
+        raise AlertMonitorError("; ".join(errors))
 
     def _play_backend(self, backend: str) -> None:
         if backend == "aplay":
@@ -178,7 +196,16 @@ class BeepPlayer:
             check=False,
         )
         if completed.returncode != 0:
-            raise AlertMonitorError(completed.stderr.strip() or "beep command failed")
+            error = (completed.stderr or completed.stdout).strip()
+            if error:
+                raise AlertMonitorError(error)
+            if not self._warned_empty_beep_failure:
+                LOGGER.warning(
+                    "beep command exited with status %s but produced no error "
+                    "output; treating it as a best-effort system-speaker beep",
+                    completed.returncode,
+                )
+                self._warned_empty_beep_failure = True
 
     def _play_console_bell(self) -> None:
         try:

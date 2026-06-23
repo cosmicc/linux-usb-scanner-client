@@ -46,6 +46,23 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(summary.max_attempts, 1)
         self.assertEqual(summary.last_error, "connection refused")
 
+    def test_initialize_preserves_existing_pending_queue(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "queue.sqlite3"
+            first_store = ScanStore(database_path)
+            first_store.initialize()
+            first_store.enqueue_scan("1234567890", captured_at="2026-06-23T01:00:00Z")
+
+            second_store = ScanStore(database_path)
+            second_store.initialize()
+            summary = second_store.queue_summary()
+            scan = second_store.fetch_next_due(now="2026-06-23T01:01:00Z")
+
+        self.assertEqual(summary.pending_count, 1)
+        self.assertEqual(summary.oldest_pending_at, "2026-06-23T01:00:00Z")
+        self.assertIsNotNone(scan)
+        self.assertEqual(scan.barcode, "1234567890")
+
 
 if __name__ == "__main__":
     unittest.main()

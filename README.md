@@ -33,7 +33,7 @@ without a GUI.
 
 ## Current Behavior
 
-- Current version: `0.1.5`.
+- Current version: `0.1.8`.
 - Runs as `linux-usb-scanner-client.service` on Debian and Ubuntu.
 - Runs a separate `linux-usb-scanner-client-monitor.service` for degraded-state beep alerts.
 - Stores runtime settings in `/etc/linux-usb-scanner-client.conf`.
@@ -44,6 +44,7 @@ without a GUI.
 - Opens and holds the TCP connection only while the configured USB scanner is available.
 - Does not connect to the server when the scanner is missing, inaccessible, or misconfigured.
 - Buffers scans in `/var/lib/linux-usb-scanner-client/scans.sqlite3` if the server is unavailable.
+- Keeps the SQLite scan queue in persistent `/var/lib` storage across service restarts, app updates, and host reboots.
 - Drains queued scans in capture order after the server is reachable again.
 - Provides CLI health output with scanner state, server state, queue depth, backlog age, queue storage free space, heartbeat, and recent errors.
 - Beeps continuously during degraded states when alerting is enabled.
@@ -67,6 +68,9 @@ From the project directory on Debian 12 or newer, or Ubuntu 22.04 or newer:
 ```bash
 sudo scripts/install.sh
 ```
+
+All shell scripts under `scripts/` must be run as root. They fail immediately
+with a sudo reminder when run as a normal user, including `--help` requests.
 
 The installer:
 
@@ -92,6 +96,13 @@ The installer is safe to rerun from a source checkout or from the installed
 `/opt/linux-usb-scanner-client` directory. When the source directory is already
 the install directory, it skips the application file copy instead of copying the
 tree onto itself.
+
+If the app is already installed, `sudo scripts/install.sh` acts as an update:
+it refreshes application files, systemd units, dependencies, and the virtual
+environment, then restarts the app service, alert monitor service, and update
+timer. It does not delete or recreate `/opt/linux-usb-scanner-client`,
+`/etc/linux-usb-scanner-client.conf`, `/var/lib/linux-usb-scanner-client`, or
+`/var/log/linux-usb-scanner-client.log`.
 
 The installer grants the `linux-usb-scanner-client` service user read/traverse
 access to the app directory where `scripts/install.sh` is running from and to
@@ -268,12 +279,27 @@ metadata and a UTC retry timestamp. Once the scanner is present and the server
 can be reached, queued scans are sent in the order they were captured.
 
 Pending scans are retained forever until successfully sent. Sent scan metadata
-is retained for seven days by default. Cleanup never removes pending scans.
+is retained for seven days by default. Automated cleanup never removes pending
+scans.
+The queue database is stored under `/var/lib/linux-usb-scanner-client/`, which
+is persistent across reboots and is preserved by install/update runs.
 
 The health check reports free space on the queue database filesystem and marks
 health degraded when it drops below `buffer.storage_min_free_mb`. Provision more
 disk or move `buffer.database_path` before that threshold is reached; the app
 will not delete pending scans to make room.
+
+To explicitly clear pending queued scans, run:
+
+```bash
+sudo /opt/linux-usb-scanner-client/scripts/clear-scan-queue.sh
+```
+
+The clear script stops the app and monitor services, asks you to type `CLEAR`,
+deletes pending scan rows from the SQLite queue, vacuums the database so barcode
+payloads are removed from the file, and restarts services that were running. It
+preserves sent scan metadata by default. Add `--include-sent` only when you want
+to remove all rows from the scans table. Add `--yes` for non-interactive use.
 
 ## Degraded-State Beep Alerts
 
@@ -311,6 +337,12 @@ Different Debian and Ubuntu installs expose different sound paths: the `aplay`
 backend may require ALSA output to be configured, while the `beep` backend may
 require the `beep` package and system speaker support. Use `enabled = false` to
 keep the monitor service running without making sound.
+
+If you want alerts to use only the audio card, set `backend = aplay`. If
+`backend = beep` is selected, the system speaker is used. Some Linux `beep`
+package and driver combinations can make an audible system-speaker beep while
+returning a nonzero exit status with no error text; the monitor treats that as a
+best-effort beep and logs one warning instead of failing every alert interval.
 
 Both the scanner app service and the alert monitor service use systemd
 `Restart=always`. The alert monitor also disables systemd start-rate limiting so
@@ -375,14 +407,16 @@ sudo scripts/uninstall.sh
 
 This preserves config, queued scans, logs, install files, and service identity.
 
-Remove config/state/logs and service identity while preserving the app directory:
+Remove SQLite state, including queued scans, while still preserving config,
+logs, install files, and service identity:
 
 ```bash
 sudo scripts/uninstall.sh --purge
 ```
 
-Use `--purge` only when queued scans and local configuration are no longer
-needed. `/opt/linux-usb-scanner-client` is always left intact.
+Use `--purge` only when queued scans and local state are no longer needed.
+`/opt/linux-usb-scanner-client`, `/etc/linux-usb-scanner-client.conf`, and
+`/var/log/linux-usb-scanner-client.log` are always left intact.
 
 ## Development
 
@@ -397,5 +431,8 @@ PYTHONPATH=src python -m unittest discover -s tests
 Validate shell scripts after editing installer behavior:
 
 ```bash
-bash -n scripts/install.sh scripts/uninstall.sh scripts/check-health.sh scripts/restart-services.sh
+bash -n scripts/install.sh scripts/uninstall.sh scripts/check-health.sh scripts/restart-services.sh scripts/clear-scan-queue.sh
 ```
+
+Runtime script checks should be run with `sudo`; non-root execution is expected
+to stop immediately before option parsing.
