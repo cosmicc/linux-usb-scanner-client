@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here.
 
+## [0.1.5] - 2026-06-23
+
+### Added
+
+- Added `scripts/restart-services.sh` to reload systemd and restart the scanner
+  service, alert monitor service, and auto-update timer without rebooting.
+- Added an explicit `--run-update-check` option for operators who intentionally
+  want the restart helper to run the root-owned one-shot updater.
+
+### Changed
+
+- Documented the full-app restart workflow in `README.md` and `AGENTS.md`.
+- Bumped prerelease version to `0.1.5`.
+
 ## [0.1.4] - 2026-06-23
 
 ### Changed

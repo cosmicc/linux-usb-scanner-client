@@ -33,7 +33,7 @@ without a GUI.
 
 ## Current Behavior
 
-- Current version: `0.1.4`.
+- Current version: `0.1.5`.
 - Runs as `linux-usb-scanner-client.service` on Debian and Ubuntu.
 - Runs a separate `linux-usb-scanner-client-monitor.service` for degraded-state beep alerts.
 - Stores runtime settings in `/etc/linux-usb-scanner-client.conf`.
@@ -148,6 +148,20 @@ Then restart:
 ```bash
 sudo systemctl restart linux-usb-scanner-client
 ```
+
+To restart the whole installed app after config, unit, script, or app-file
+changes without rebooting:
+
+```bash
+sudo /opt/linux-usb-scanner-client/scripts/restart-services.sh
+```
+
+From a source checkout, run `sudo scripts/restart-services.sh`. The helper
+reloads systemd, resets failed unit state, restarts the scanner service,
+restarts the alert monitor service, and restarts the auto-update timer. It does
+not run the root-owned one-shot auto-update service by default; pass
+`--run-update-check` only when you intentionally want an immediate configured
+update check.
 
 ## Configure the Server
 
@@ -383,5 +397,5 @@ PYTHONPATH=src python -m unittest discover -s tests
 Validate shell scripts after editing installer behavior:
 
 ```bash
-bash -n scripts/install.sh scripts/uninstall.sh
+bash -n scripts/install.sh scripts/uninstall.sh scripts/check-health.sh scripts/restart-services.sh
 ```

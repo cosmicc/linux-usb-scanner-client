@@ -55,7 +55,7 @@ Before editing scanner behavior, inspect the current `industrial-scanner-logger`
 
 ## Versioning
 
-The app started at version `0.1.0`; the current prerelease version is `0.1.4`. The auto-updater detects available updates by reading `[project].version` from `pyproject.toml` on the configured Git branch and comparing it to the installed package `__version__`.
+The app started at version `0.1.0`; the current prerelease version is `0.1.5`. The auto-updater detects available updates by reading `[project].version` from `pyproject.toml` on the configured Git branch and comparing it to the installed package `__version__`.
 
 For every app behavior, installer, config template, systemd unit, operational script, dependency, or user-facing workflow change that should reach installed systems through auto-update, advance the app version so `pyproject.toml` changes to a higher version. Keep `pyproject.toml`, `src/linux_usb_scanner_client/__init__.py`, `README.md`, and `CHANGELOG.md` aligned, and update the version consistency test. Agent-only documentation changes that should not trigger installed-system updates may leave the version unchanged.
 
@@ -68,13 +68,14 @@ For every app behavior, installer, config template, systemd unit, operational sc
 - Keep `scripts/install.sh` safe to rerun from `/opt/linux-usb-scanner-client`; it must not copy the install tree onto itself.
 - Keep the installer responsible for granting and verifying service-user read access to both the source app directory and `/opt/linux-usb-scanner-client`.
 - The installer must verify that the app service, alert monitor service, and update timer are enabled and active before reporting success.
-- Run `bash -n scripts/install.sh scripts/uninstall.sh` after shell script changes.
+- Run `bash -n scripts/install.sh scripts/uninstall.sh scripts/check-health.sh scripts/restart-services.sh` after shell script changes.
 - Run `PYTHONPATH=src python -m unittest discover -s tests` after Python changes.
 
 ## Operational Expectations
 
 - `linux-usb-scanner-client health` must show scanner state, server connection state, queue depth, oldest pending scan, heartbeat freshness, storage free space, auto-update state, alert monitor state, and recent errors.
 - `scripts/check-health.sh` is the quick installed-system diagnostic wrapper for CLI health, USB input-device visibility, systemd unit state, queue/storage state, server state, alert state, update state, and log-file presence.
+- `scripts/restart-services.sh` is the installed-system restart helper for applying config, unit, script, or app-file changes without rebooting. It must reload systemd, reset failed state, restart the app service, restart the alert monitor service, and restart the auto-update timer. It must not run the root-owned one-shot updater unless the operator passes `--run-update-check`.
 - Human-readable `linux-usb-scanner-client health` output is ANSI-colored by default; use `--no-color` for plain text and `--json` for structured output.
 - `linux-usb-scanner-client list-devices` must help identify the correct scanner matcher for `/etc/linux-usb-scanner-client.conf`.
 - `linux-usb-scanner-client monitor` is a separate auto-starting service that plays the highest-priority active alert pattern: 5 quick beeps when the app service heartbeat is stale, 3 quick beeps when the USB scanner is unavailable, and 1 quick beep when the server is unreachable.

@@ -353,5 +353,6 @@ echo "Verified app service, alert monitor service, and update timer are enabled 
 echo "Edit ${CONFIG_PATH}, then run: sudo systemctl restart ${APP_NAME}"
 echo "Check health with: sudo ${INSTALL_DIR}/venv/bin/linux-usb-scanner-client health"
 echo "Run full diagnostics with: sudo ${INSTALL_DIR}/scripts/check-health.sh"
+echo "Restart all installed app units with: sudo ${INSTALL_DIR}/scripts/restart-services.sh"
 echo "Auto-update timer is installed; set [updates] enabled = true in ${CONFIG_PATH} to allow updates."
 echo "Alert monitor is installed; configure [alerting] in ${CONFIG_PATH} for beep behavior."

@@ -32,7 +32,7 @@ class AutoUpdateTests(unittest.TestCase):
         output = format_update_result(result)
 
         self.assertIn("Update state: disabled", output)
-        self.assertIn("Installed version: 0.1.4", output)
+        self.assertIn("Installed version: 0.1.5", output)
 
     @unittest.skipIf(shutil.which("git") is None, "git is required")
     def test_check_only_detects_newer_version(self) -> None:
@@ -44,7 +44,7 @@ class AutoUpdateTests(unittest.TestCase):
             (repo / "pyproject.toml").write_text(
                 """
 [project]
-version = "0.1.5"
+version = "0.1.6"
 """,
                 encoding="utf-8",
             )
@@ -66,7 +66,7 @@ version = "0.1.5"
             result = AutoUpdater(config).run(check_only=True)
 
         self.assertEqual(result.state, "update_available")
-        self.assertEqual(result.remote_version, "0.1.5")
+        self.assertEqual(result.remote_version, "0.1.6")
         self.assertTrue(result.update_available)
 
 
