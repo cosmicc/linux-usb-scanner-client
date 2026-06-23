@@ -75,7 +75,7 @@ The app started at version `0.1.0`; the current prerelease version is `0.1.3`. D
 - Human-readable `linux-usb-scanner-client health` output is ANSI-colored by default; use `--no-color` for plain text and `--json` for structured output.
 - `linux-usb-scanner-client list-devices` must help identify the correct scanner matcher for `/etc/linux-usb-scanner-client.conf`.
 - `linux-usb-scanner-client monitor` is a separate auto-starting service that plays the highest-priority active alert pattern: 5 quick beeps when the app service heartbeat is stale, 3 quick beeps when the USB scanner is unavailable, and 1 quick beep when the server is unreachable.
-- Alerting must prefer the system speaker first, then the audio card, with console bell only as a final fallback for `backend = auto`.
+- Alerting must prefer the audio card first, then the system speaker, with console bell only as a final fallback for `backend = auto`.
 - Keep the main scanner service and alert monitor service configured to restart continuously; the monitor unit must not be blocked by systemd start-rate limiting.
 - Server connection attempts are blocked whenever the scanner is unavailable.
 - Backlog delivery is best effort: failed TCP connects or sends leave scans queued with attempt metadata and retry later.

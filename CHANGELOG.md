@@ -9,8 +9,8 @@ All notable changes to this project are documented here.
 - Installer and documentation now support Debian Linux alongside Ubuntu.
 - Installer now fails early with clear messages when `systemctl`, the `input`
   group, or Python 3.10+ are unavailable on the target Debian/Ubuntu host.
-- Automatic beep alerts now prefer the system speaker first, then the audio
-  card, with console bell kept as a final fallback.
+- Automatic beep alerts now prefer the audio card first, then the system
+  speaker, with console bell kept as a final fallback.
 - Alert monitor systemd unit now disables start-rate limiting so repeated
   process failures do not permanently stop alerting.
 - Installer now safely handles being rerun from `/opt/linux-usb-scanner-client`

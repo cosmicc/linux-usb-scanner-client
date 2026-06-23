@@ -21,7 +21,7 @@ from .storage import ScanStore
 from .timeutil import utc_timestamp
 
 LOGGER = logging.getLogger(__name__)
-AUTO_BEEP_BACKENDS = ("beep", "aplay", "console_bell")
+AUTO_BEEP_BACKENDS = ("aplay", "beep", "console_bell")
 
 
 class AlertMonitorError(RuntimeError):

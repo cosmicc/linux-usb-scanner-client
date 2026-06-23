@@ -47,7 +47,7 @@ without a GUI.
 - Drains queued scans in capture order after the server is reachable again.
 - Provides CLI health output with scanner state, server state, queue depth, backlog age, queue storage free space, heartbeat, and recent errors.
 - Beeps continuously during degraded states when alerting is enabled.
-- Uses the system speaker first for beep alerts, falls back to the audio card,
+- Uses the audio card first for beep alerts, falls back to the system speaker,
   and keeps console bell as a final fallback when `backend = auto`.
 - Avoids logging raw barcode values.
 
@@ -256,12 +256,12 @@ Restart the monitor after changing alerting settings:
 sudo systemctl restart linux-usb-scanner-client-monitor
 ```
 
-`backend = auto` tries the Linux `beep` command first for system-speaker
-alerts, then ALSA audio through `aplay`, then a console bell as a final
-fallback. Different Debian and Ubuntu installs expose different sound paths:
-the `beep` backend may require the `beep` package and system speaker support,
-while the `aplay` backend may require ALSA output to be configured. Use
-`enabled = false` to keep the monitor service running without making sound.
+`backend = auto` tries ALSA audio through `aplay` first, then the Linux `beep`
+command for system-speaker alerts, then a console bell as a final fallback.
+Different Debian and Ubuntu installs expose different sound paths: the `aplay`
+backend may require ALSA output to be configured, while the `beep` backend may
+require the `beep` package and system speaker support. Use `enabled = false` to
+keep the monitor service running without making sound.
 
 Both the scanner app service and the alert monitor service use systemd
 `Restart=always`. The alert monitor also disables systemd start-rate limiting so

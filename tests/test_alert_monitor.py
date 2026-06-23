@@ -72,22 +72,22 @@ class AlertMonitorTests(unittest.TestCase):
 
         self.assertEqual(captured.getvalue(), "\a\a\a")
 
-    def test_auto_backend_prefers_system_speaker(self) -> None:
+    def test_auto_backend_prefers_audio_card(self) -> None:
         player = _RecordingBeepPlayer(AlertingConfig(backend="auto"))
 
         player.play_one_beep()
 
-        self.assertEqual(player.backends, ["beep"])
+        self.assertEqual(player.backends, ["aplay"])
 
-    def test_auto_backend_uses_audio_card_after_system_speaker_failure(self) -> None:
+    def test_auto_backend_uses_system_speaker_after_audio_card_failure(self) -> None:
         player = _RecordingBeepPlayer(
             AlertingConfig(backend="auto"),
-            failing_backends={"beep"},
+            failing_backends={"aplay"},
         )
 
         player.play_one_beep()
 
-        self.assertEqual(player.backends, ["beep", "aplay"])
+        self.assertEqual(player.backends, ["aplay", "beep"])
 
     def test_auto_backend_keeps_console_bell_as_final_fallback(self) -> None:
         player = _RecordingBeepPlayer(
@@ -97,7 +97,7 @@ class AlertMonitorTests(unittest.TestCase):
 
         player.play_one_beep()
 
-        self.assertEqual(player.backends, ["beep", "aplay", "console_bell"])
+        self.assertEqual(player.backends, ["aplay", "beep", "console_bell"])
 
 
 class _RecordingBeepPlayer(BeepPlayer):
