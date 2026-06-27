@@ -23,7 +23,7 @@ class VersionTests(unittest.TestCase):
         pyproject_text = (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
         project_version = parse_project_version(pyproject_text)
 
-        self.assertEqual(project_version, "0.1.8")
+        self.assertEqual(project_version, "1.0.0")
         self.assertEqual(__version__, project_version)
 
     def test_cli_prints_package_version(self) -> None:
@@ -43,9 +43,9 @@ class VersionTests(unittest.TestCase):
         self.assertEqual(captured.getvalue().strip(), __version__)
 
     def test_version_comparison(self) -> None:
-        self.assertTrue(is_newer_version("0.1.8", "0.1.7"))
-        self.assertFalse(is_newer_version("0.1.7", "0.1.8"))
-        self.assertEqual(compare_versions("0.1.8", "0.1.8"), 0)
+        self.assertTrue(is_newer_version("1.0.0", "0.1.8"))
+        self.assertFalse(is_newer_version("0.1.8", "1.0.0"))
+        self.assertEqual(compare_versions("1.0.0", "1.0.0"), 0)
 
 
 if __name__ == "__main__":

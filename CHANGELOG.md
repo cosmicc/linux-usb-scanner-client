@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here.
 
+## [1.0.0] - 2026-06-27
+
+### Added
+
+- Added current-day and previous-day UTC scan totals to `scripts/check-health.sh`
+  using read-only aggregate counts from the configured SQLite scan queue.
+
+### Changed
+
+- Documented the expanded health-check script output in `README.md` and
+  `AGENTS.md`.
+- Promoted the project to release version `1.0.0`.
+
 ## [0.1.8] - 2026-06-23
 
 ### Changed

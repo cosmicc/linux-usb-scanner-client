@@ -33,7 +33,7 @@ without a GUI.
 
 ## Current Behavior
 
-- Current version: `0.1.8`.
+- Current version: `1.0.0`.
 - Runs as `linux-usb-scanner-client.service` on Debian and Ubuntu.
 - Runs a separate `linux-usb-scanner-client-monitor.service` for degraded-state beep alerts.
 - Stores runtime settings in `/etc/linux-usb-scanner-client.conf`.
@@ -47,6 +47,7 @@ without a GUI.
 - Keeps the SQLite scan queue in persistent `/var/lib` storage across service restarts, app updates, and host reboots.
 - Drains queued scans in capture order after the server is reachable again.
 - Provides CLI health output with scanner state, server state, queue depth, backlog age, queue storage free space, heartbeat, and recent errors.
+- Reports current-day and previous-day UTC scan totals in the quick health-check script without printing barcode payloads.
 - Beeps continuously during degraded states when alerting is enabled.
 - Uses the audio card first for beep alerts, falls back to the system speaker,
   and keeps console bell as a final fallback when `backend = auto`.
@@ -244,9 +245,10 @@ sudo /opt/linux-usb-scanner-client/scripts/check-health.sh
 ```
 
 The script summarizes the CLI health report, USB keyboard-like scanner devices,
-server connection state, queue/storage state, alert monitor state, update state,
-systemd unit active/enabled state, and the `/var/log/linux-usb-scanner-client.log`
-file. From a source checkout, run `sudo scripts/check-health.sh`.
+server connection state, queue/storage state, current-day and previous-day UTC
+scan totals, alert monitor state, update state, systemd unit active/enabled
+state, and the `/var/log/linux-usb-scanner-client.log` file. From a source
+checkout, run `sudo scripts/check-health.sh`.
 
 ## Logs
 

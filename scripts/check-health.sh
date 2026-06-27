@@ -22,7 +22,8 @@ usage() {
 Usage: sudo scripts/check-health.sh [--config PATH]
 
 Summarizes linux-usb-scanner-client health, USB input-device visibility,
-server connection state, queue state, alert monitor state, and systemd units.
+server connection state, queue state, scan totals, alert monitor state, and
+systemd units.
 
 Options:
   --config PATH   Config file path. Default: /etc/linux-usb-scanner-client.conf
@@ -229,6 +230,72 @@ for device in devices:
 PY
 }
 
+print_scan_totals() {
+  print_header "Scan Totals"
+  python3 - "${CONFIG_PATH}" <<'PY'
+import configparser
+import sqlite3
+import sys
+from datetime import datetime, time, timedelta, timezone
+from pathlib import Path
+
+DEFAULT_DATABASE_PATH = Path("/var/lib/linux-usb-scanner-client/scans.sqlite3")
+
+config_path = Path(sys.argv[1])
+parser = configparser.ConfigParser()
+if not parser.read(config_path):
+    print(f"Unable to read config: {config_path}")
+    raise SystemExit(1)
+
+database_path = Path(
+    parser.get("buffer", "database_path", fallback=str(DEFAULT_DATABASE_PATH))
+)
+if not database_path.exists():
+    print(f"{database_path}: missing")
+    raise SystemExit(1)
+
+today = datetime.now(timezone.utc).date()
+yesterday = today - timedelta(days=1)
+
+
+def utc_bounds(day):
+    start = datetime.combine(day, time.min, tzinfo=timezone.utc)
+    end = start + timedelta(days=1)
+    return (
+        start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    )
+
+
+def count_for_day(connection, day):
+    start, end = utc_bounds(day)
+    row = connection.execute(
+        """
+        SELECT COUNT(*) AS scan_count
+        FROM scans
+        WHERE captured_at >= ?
+          AND captured_at < ?
+        """,
+        (start, end),
+    ).fetchone()
+    return int(row[0])
+
+
+try:
+    database_uri = database_path.resolve(strict=False).as_uri() + "?mode=ro"
+    with sqlite3.connect(database_uri, uri=True) as connection:
+        print(f"Database: {database_path}")
+        print(f"Today ({today.isoformat()} UTC): {count_for_day(connection, today)}")
+        print(
+            f"Yesterday ({yesterday.isoformat()} UTC): "
+            f"{count_for_day(connection, yesterday)}"
+        )
+except sqlite3.Error as exc:
+    print(f"Unable to count scans in {database_path}: {exc}")
+    raise SystemExit(1)
+PY
+}
+
 print_log_status() {
   print_header "Log File"
   if [[ -e "${LOG_PATH}" ]]; then
@@ -243,6 +310,7 @@ main() {
   local health_status=0
   local unit_status=0
   local device_status=0
+  local totals_status=0
   local log_status=0
 
   echo "${APP_NAME} health check"
@@ -265,15 +333,16 @@ main() {
 
   print_units || unit_status=$?
   print_devices || device_status=$?
+  print_scan_totals || totals_status=$?
   print_log_status || log_status=$?
 
   print_header "Result"
-  if [[ "${health_status}" -eq 0 && "${unit_status}" -eq 0 && "${device_status}" -eq 0 && "${log_status}" -eq 0 ]]; then
+  if [[ "${health_status}" -eq 0 && "${unit_status}" -eq 0 && "${device_status}" -eq 0 && "${totals_status}" -eq 0 && "${log_status}" -eq 0 ]]; then
     echo "OK"
     return 0
   fi
   echo "One or more checks failed or reported a degraded state."
-  echo "Exit details: health=${health_status} units=${unit_status} devices=${device_status} log=${log_status}"
+  echo "Exit details: health=${health_status} units=${unit_status} devices=${device_status} totals=${totals_status} log=${log_status}"
   return 1
 }
 

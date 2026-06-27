@@ -55,7 +55,7 @@ Before editing scanner behavior, inspect the current `industrial-scanner-logger`
 
 ## Versioning
 
-The app started at version `0.1.0`; the current prerelease version is `0.1.8`. The auto-updater detects available updates by reading `[project].version` from `pyproject.toml` on the configured Git branch and comparing it to the installed package `__version__`.
+The app started at version `0.1.0`; the current release version is `1.0.0`. The auto-updater detects available updates by reading `[project].version` from `pyproject.toml` on the configured Git branch and comparing it to the installed package `__version__`.
 
 For every app behavior, installer, config template, systemd unit, operational script, dependency, or user-facing workflow change that should reach installed systems through auto-update, advance the app version so `pyproject.toml` changes to a higher version. Keep `pyproject.toml`, `src/linux_usb_scanner_client/__init__.py`, `README.md`, and `CHANGELOG.md` aligned, and update the version consistency test. Agent-only documentation changes that should not trigger installed-system updates may leave the version unchanged.
 
@@ -76,7 +76,7 @@ For every app behavior, installer, config template, systemd unit, operational sc
 ## Operational Expectations
 
 - `linux-usb-scanner-client health` must show scanner state, server connection state, queue depth, oldest pending scan, heartbeat freshness, storage free space, auto-update state, alert monitor state, and recent errors.
-- `scripts/check-health.sh` is the quick installed-system diagnostic wrapper for CLI health, USB input-device visibility, systemd unit state, queue/storage state, server state, alert state, update state, and log-file presence.
+- `scripts/check-health.sh` is the quick installed-system diagnostic wrapper for CLI health, USB input-device visibility, systemd unit state, queue/storage state, UTC today/yesterday scan totals, server state, alert state, update state, and log-file presence.
 - `scripts/restart-services.sh` is the installed-system restart helper for applying config, unit, script, or app-file changes without rebooting. It must reload systemd, reset failed state, restart the app service, restart the alert monitor service, and restart the auto-update timer. It must not run the root-owned one-shot updater unless the operator passes `--run-update-check`.
 - `scripts/clear-scan-queue.sh` is the only normal operator path for deleting queued scan payloads. It must require explicit confirmation unless `--yes` is passed, must stop/restart running services around the delete, and must preserve sent metadata unless `--include-sent` is passed.
 - Human-readable `linux-usb-scanner-client health` output is ANSI-colored by default; use `--no-color` for plain text and `--json` for structured output.
